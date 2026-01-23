@@ -1,0 +1,30 @@
+# Alembic Migrations
+
+Este diretório contém as migrações do banco de dados usando Alembic.
+
+## Comandos úteis:
+
+### Criar uma nova migração
+```bash
+alembic revision -m "descrição da migração"
+```
+
+### Aplicar migrações
+```bash
+alembic upgrade head
+```
+
+### Reverter última migração
+```bash
+alembic downgrade -1
+```
+
+### Ver histórico
+```bash
+alembic history
+```
+
+### Ver status atual
+```bash
+alembic current
+```

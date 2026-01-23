@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-primary;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors;
+  }
+  
+  .btn-accent {
+    @apply bg-accent text-primary px-6 py-2.5 rounded-lg font-medium hover:bg-accent-dark transition-colors;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-primary text-primary px-6 py-2.5 rounded-lg font-medium hover:bg-primary hover:text-white transition-colors;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+  }
+  
+  .input {
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent;
+  }
+  
+  .badge {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-orcamento {
+    @apply bg-blue-100 text-blue-800;
+  }
+  
+  .badge-proposta {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-contrato {
+    @apply bg-green-100 text-green-800;
+  }
+}
