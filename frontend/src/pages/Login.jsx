@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -16,10 +16,11 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/login/', { username, password });
+      const response = await api.post('/auth/login/', { username, password });
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
+      console.error('Erro login:', err.response?.data);
       setError('Usuário ou senha inválidos');
     } finally {
       setLoading(false);

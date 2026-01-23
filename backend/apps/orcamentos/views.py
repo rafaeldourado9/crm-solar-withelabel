@@ -6,19 +6,19 @@ from django.core.files.base import ContentFile
 from .models import Orcamento
 from .serializers import OrcamentoSerializer, OrcamentoCreateSerializer
 from .services import SolarCalculator
-from .pdf_service import PDFOrcamentoService
 from apps.clientes.models import Cliente
 from apps.premissas.models import Premissa
 from decimal import Decimal
 
 class CalcularDimensionamentoView(APIView):
     """
-    Endpoint para calcular dimensionamento sem salvar
+    Endpoint para calcular dimensionamento sem salvar (preview)
     """
     def post(self, request):
         consumo_kwh = request.data.get('consumo_kwh')
         painel_id = request.data.get('painel_id')
-        parcelas = request.data.get('parcelas')
+        valor_kit = request.data.get('valor_kit')
+        forma_pagamento = request.data.get('forma_pagamento', 'avista')
         
         if not consumo_kwh or not painel_id:
             return Response(
@@ -27,16 +27,34 @@ class CalcularDimensionamentoView(APIView):
             )
         
         try:
-            calculator = SolarCalculator()
-            resultado = calculator.calcular_completo(
+            # Cálculo técnico
+            resultado_tecnico = SolarCalculator.calcular_tecnico(
                 float(consumo_kwh),
                 int(painel_id),
-                int(parcelas) if parcelas else None,
-                hsp=request.data.get('hsp'),
-                perda=request.data.get('perda'),
-                margem_lucro=request.data.get('margem_lucro')
+                request.data.get('hsp')
             )
-            return Response(resultado)
+            
+            # Cálculo financeiro (se valor_kit fornecido)
+            resultado_financeiro = {}
+            if valor_kit:
+                resultado_financeiro = SolarCalculator.calcular_financeiro(
+                    float(valor_kit),
+                    forma_pagamento
+                )
+            
+            # Economia projetada
+            premissa = Premissa.get_ativa()
+            economia = SolarCalculator.calcular_economia_projetada(
+                resultado_tecnico['geracao_mensal_kwh'],
+                float(premissa.tarifa_energia_atual),
+                float(premissa.inflacao_energetica_anual)
+            )
+            
+            return Response({
+                **resultado_tecnico,
+                **resultado_financeiro,
+                **economia
+            })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

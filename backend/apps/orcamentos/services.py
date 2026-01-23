@@ -1,157 +1,115 @@
+from decimal import Decimal
+import math
 from apps.premissas.models import Premissa
-from apps.equipamentos.models import Equipamento
+from apps.equipamentos.models import Painel, Inversor
 
 class SolarCalculator:
-    def __init__(self):
-        self.premissa = Premissa.get_ativa()
     
-    def calcular_dimensionamento(self, consumo_kwh, painel_id, hsp_override=None, perda_override=None):
+    @staticmethod
+    def calcular_tecnico(consumo_mensal, painel_id, hsp_custom=None):
         """
-        Calcula o dimensionamento do sistema fotovoltaico
+        Calcula dimensionamento técnico do sistema solar
         """
-        painel = Equipamento.objects.get(id=painel_id, tipo='painel')
+        premissa = Premissa.get_ativa()
+        painel = Painel.objects.get(id=painel_id, ativo=True)
         
-        hsp = hsp_override or self.premissa.hsp_padrao
-        perda = perda_override or self.premissa.perda_padrao
+        hsp = Decimal(str(hsp_custom)) if hsp_custom else premissa.hsp_padrao
+        perda = premissa.perda_padrao
         
-        # Fórmula: Potência Wp = (Consumo / 30) / (HSP * (1 - perda))
-        consumo_diario = consumo_kwh / 30
-        potencia_necessaria_kw = consumo_diario / (hsp * (1 - perda))
-        potencia_necessaria_wp = potencia_necessaria_kw * 1000
+        # Potência necessária (Wp)
+        consumo_diario = Decimal(str(consumo_mensal)) / 30
+        potencia_necessaria = consumo_diario / (hsp * (1 - perda))
         
-        # Calcular quantidade de painéis
-        potencia_painel_wp = painel.potencia
-        quantidade_paineis = int(potencia_necessaria_wp / potencia_painel_wp) + 1
+        # Quantidade de painéis (arredondar para cima)
+        qtd_paineis = math.ceil(potencia_necessaria / painel.potencia_w)
         
-        # Potência total instalada
-        potencia_total_kwp = (quantidade_paineis * potencia_painel_wp) / 1000
+        # Potência total do sistema (kWp)
+        potencia_sistema = (qtd_paineis * painel.potencia_w) / 1000
         
-        # Selecionar inversor compatível
-        potencia_inversor_min = potencia_total_kwp * self.premissa.overload_inversor
-        inversor = Equipamento.objects.filter(
-            tipo='inversor',
-            potencia__gte=potencia_inversor_min * 1000
-        ).order_by('potencia').first()
+        # Buscar inversor compatível
+        potencia_minima_inversor = potencia_sistema * 1000 * premissa.overload_inversor
+        inversor = Inversor.objects.filter(
+            potencia_w__gte=potencia_minima_inversor,
+            ativo=True
+        ).first()
         
-        # Geração estimada mensal
-        geracao_estimada_kwh = potencia_total_kwp * hsp * 30 * (1 - perda)
+        if not inversor:
+            raise ValueError("Nenhum inversor compatível encontrado")
+        
+        # Geração mensal estimada (kWh)
+        geracao_mensal = potencia_sistema * float(hsp) * 30 * (1 - float(perda))
+        
+        # Área ocupada
+        area_ocupada = qtd_paineis * float(painel.area_m2)
         
         return {
-            'quantidade_paineis': quantidade_paineis,
-            'potencia_total_kwp': round(potencia_total_kwp, 2),
+            'qtd_paineis': qtd_paineis,
+            'potencia_sistema_kwp': round(potencia_sistema, 2),
+            'geracao_mensal_kwh': round(geracao_mensal, 2),
+            'area_ocupada_m2': round(area_ocupada, 2),
+            'inversor': {
+                'id': inversor.id,
+                'modelo': inversor.modelo,
+                'potencia_w': inversor.potencia_w
+            },
             'painel': {
                 'id': painel.id,
                 'modelo': painel.modelo,
-                'potencia': painel.potencia,
-                'preco': float(painel.preco)
+                'potencia_w': painel.potencia_w,
+                'preco_unitario': float(painel.preco_unitario)
             },
-            'inversor': {
-                'id': inversor.id if inversor else None,
-                'modelo': inversor.modelo if inversor else 'Não encontrado',
-                'potencia': inversor.potencia if inversor else 0,
-                'preco': float(inversor.preco) if inversor else 0
-            } if inversor else None,
-            'geracao_estimada_kwh': round(geracao_estimada_kwh, 2),
-            'hsp_utilizado': hsp,
-            'perda_utilizada': perda
+            'hsp_utilizado': float(hsp),
+            'perda_utilizada': float(perda)
         }
     
-    def calcular_financeiro(self, dimensionamento, margem_lucro_override=None):
+    @staticmethod
+    def calcular_financeiro(valor_kit_base, forma_pagamento):
         """
-        Calcula os valores financeiros do orçamento
+        Calcula valor final com base na forma de pagamento
+        forma_pagamento: "avista" ou "12", "18", "24" (número de parcelas)
         """
-        margem = margem_lucro_override or self.premissa.margem_lucro_percentual
+        premissa = Premissa.get_ativa()
+        valor_base = Decimal(str(valor_kit_base))
         
-        # Custo dos equipamentos
-        custo_paineis = dimensionamento['quantidade_paineis'] * dimensionamento['painel']['preco']
-        custo_inversor = dimensionamento['inversor']['preco'] if dimensionamento['inversor'] else 0
-        
-        # Custos adicionais
-        custo_montagem = float(self.premissa.montagem_por_painel) * dimensionamento['quantidade_paineis']
-        custo_projeto = float(self.premissa.valor_projeto)
-        
-        # Custo total
-        custo_total = custo_paineis + custo_inversor + custo_montagem + custo_projeto
-        
-        # Aplicar margem de lucro
-        valor_venda = custo_total * (1 + margem / 100)
-        
-        # Aplicar impostos e comissões
-        impostos = valor_venda * (float(self.premissa.imposto_percentual) / 100)
-        comissao = valor_venda * (float(self.premissa.comissao_percentual) / 100)
-        
-        valor_final = valor_venda + impostos + comissao
-        
-        return {
-            'custo_total': round(custo_total, 2),
-            'valor_venda': round(valor_venda, 2),
-            'impostos': round(impostos, 2),
-            'comissao': round(comissao, 2),
-            'valor_final': round(valor_final, 2),
-            'detalhamento': {
-                'custo_paineis': round(custo_paineis, 2),
-                'custo_inversor': round(custo_inversor, 2),
-                'custo_montagem': round(custo_montagem, 2),
-                'custo_projeto': round(custo_projeto, 2)
-            }
-        }
-    
-    def calcular_parcelamento(self, valor_final, parcelas):
-        """
-        Calcula o valor parcelado com juros
-        """
-        taxas = self.premissa.taxa_juros_maquininha or {}
-        taxa_juros = taxas.get(str(parcelas), 0)
-        
-        if taxa_juros == 0:
+        if forma_pagamento == "avista" or not forma_pagamento:
             return {
-                'parcelas': parcelas,
-                'valor_parcela': round(valor_final / parcelas, 2),
-                'valor_total': valor_final,
-                'taxa_juros': 0
+                'valor_final': float(valor_base),
+                'valor_parcela': None,
+                'taxa_aplicada': 0,
+                'parcelas': None
             }
         
-        # Cálculo com juros compostos
-        valor_com_juros = valor_final * (1 + taxa_juros / 100)
-        valor_parcela = valor_com_juros / parcelas
+        # Buscar taxa no JSON
+        taxas = premissa.taxas_maquininha
+        taxa_percentual = Decimal(str(taxas.get(str(forma_pagamento), 0)))
+        
+        # Aplicar taxa (juros simples)
+        valor_final = valor_base * (1 + (taxa_percentual / 100))
+        valor_parcela = valor_final / int(forma_pagamento)
         
         return {
-            'parcelas': parcelas,
-            'valor_parcela': round(valor_parcela, 2),
-            'valor_total': round(valor_com_juros, 2),
-            'taxa_juros': taxa_juros
+            'valor_final': round(float(valor_final), 2),
+            'valor_parcela': round(float(valor_parcela), 2),
+            'taxa_aplicada': float(taxa_percentual),
+            'parcelas': int(forma_pagamento)
         }
     
-    def calcular_completo(self, consumo_kwh, painel_id, parcelas=None, **overrides):
+    @staticmethod
+    def calcular_economia_projetada(geracao_mensal, tarifa_energia, inflacao_anual, anos=25):
         """
-        Calcula dimensionamento + financeiro + parcelamento
+        Calcula economia projetada considerando inflação energética
         """
-        dimensionamento = self.calcular_dimensionamento(
-            consumo_kwh, 
-            painel_id,
-            overrides.get('hsp'),
-            overrides.get('perda')
-        )
+        economia_total = 0
+        tarifa_atual = Decimal(str(tarifa_energia))
+        inflacao = Decimal(str(inflacao_anual)) / 100
+        geracao = Decimal(str(geracao_mensal))
         
-        financeiro = self.calcular_financeiro(
-            dimensionamento,
-            overrides.get('margem_lucro')
-        )
+        for ano in range(1, anos + 1):
+            economia_anual = geracao * 12 * tarifa_atual
+            economia_total += float(economia_anual)
+            tarifa_atual *= (1 + inflacao)
         
-        resultado = {
-            **dimensionamento,
-            **financeiro,
-            'premissas': {
-                'prazo_entrega_dias': self.premissa.prazo_entrega_dias,
-                'garantia_instalacao_meses': self.premissa.garantia_instalacao_meses,
-                'validade_proposta_dias': self.premissa.validade_proposta_dias
-            }
+        return {
+            'economia_total_25anos': round(economia_total, 2),
+            'economia_mensal_ano1': round(float(geracao * Decimal(str(tarifa_energia))), 2)
         }
-        
-        if parcelas:
-            resultado['parcelamento'] = self.calcular_parcelamento(
-                financeiro['valor_final'],
-                parcelas
-            )
-        
-        return resultado

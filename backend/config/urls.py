@@ -3,10 +3,13 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.authtoken.views import obtain_auth_token
+from django.views.decorators.csrf import csrf_exempt
+from apps.auth_views import me
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/login/', obtain_auth_token, name='api-login'),
+    path('api/auth/login/', csrf_exempt(obtain_auth_token), name='api-login'),
+    path('api/auth/me/', me, name='api-me'),
     path('api/clientes/', include('apps.clientes.urls')),
     path('api/vendedores/', include('apps.vendedores.urls')),
     path('api/premissas/', include('apps.premissas.urls')),

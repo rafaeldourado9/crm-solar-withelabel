@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Vendedor(models.Model):
     TIPO_CHOICES = [
@@ -6,13 +7,14 @@ class Vendedor(models.Model):
         ('indicacao', 'Indicação'),
     ]
     
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='vendedor')
     nome = models.CharField(max_length=255)
     cpf = models.CharField(max_length=14, unique=True)
     telefone = models.CharField(max_length=20)
     email = models.EmailField()
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, default='vendedor')
-    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     ativo = models.BooleanField(default=True)
+    bloqueado = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

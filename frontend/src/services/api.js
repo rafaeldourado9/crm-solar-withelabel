@@ -34,6 +34,7 @@ export const clientesAPI = {
 export const orcamentosAPI = {
   listar: () => api.get('/orcamentos/'),
   criar: (data) => api.post('/orcamentos/', data),
+  calcular: (data) => api.post('/orcamentos/calcular/', data),
   gerarPDF: (id) => api.post(`/orcamentos/${id}/gerar_pdf/`),
   converterProposta: (id, data) => api.post(`/orcamentos/${id}/converter_proposta/`, data),
 };
@@ -65,6 +66,12 @@ export const equipamentosAPI = {
   listar: (params) => api.get('/equipamentos/', { params }),
   criar: (data) => api.post('/equipamentos/', data),
   atualizar: (id, data) => api.put(`/equipamentos/${id}/`, data),
+  paineis: () => api.get('/equipamentos/paineis/'),
+  inversores: () => api.get('/equipamentos/inversores/'),
+  // NOVO: Função para gerar a OS recebendo o PDF (blob)
+  gerarOS: (dados) => api.post('/equipamentos/gerar_os/', dados, {
+    responseType: 'blob' 
+  }),
 };
 
 export const iaAPI = {

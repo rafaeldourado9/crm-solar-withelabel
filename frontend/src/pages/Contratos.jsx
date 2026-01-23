@@ -12,9 +12,10 @@ const Contratos = () => {
   const carregarContratos = async () => {
     try {
       const response = await contratosAPI.listar();
-      setContratos(response.data);
+      setContratos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro:', error);
+      setContratos([]);
     }
   };
 

@@ -17,6 +17,7 @@ class Cliente(models.Model):
     estado = models.CharField(max_length=2, blank=True)
     cep = models.CharField(max_length=9, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='orcamento')
+    vendedor = models.ForeignKey('vendedores.Vendedor', on_delete=models.SET_NULL, null=True, blank=True, related_name='clientes')
     criado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='clientes_criados')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

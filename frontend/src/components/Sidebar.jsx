@@ -1,20 +1,22 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Users, DollarSign, FileText, FileCheck, FileSignature, Settings, Package, Zap, LogOut } from 'lucide-react';
+import { useUserRole } from '../hooks/useUserRole';
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isVendedor, isAdmin, loading } = useUserRole();
   
   const menuItems = [
-    { path: '/dashboard', icon: Home, label: 'Dashboard' },
-    { path: '/clientes', icon: Users, label: 'Clientes' },
-    { path: '/orcamentos', icon: FileText, label: 'Orçamentos' },
-    { path: '/propostas', icon: FileCheck, label: 'Propostas' },
-    { path: '/contratos', icon: FileSignature, label: 'Contratos' },
-    { path: '/vendedores', icon: DollarSign, label: 'Vendedores' },
-    { path: '/equipamentos', icon: Package, label: 'Equipamentos' },
-    { path: '/premissas', icon: Settings, label: 'Premissas' },
-    { path: '/ia', icon: Zap, label: 'IA Features' },
+    { path: '/dashboard', icon: Home, label: 'Dashboard', allowVendedor: true },
+    { path: '/clientes', icon: Users, label: 'Clientes', allowVendedor: true },
+    { path: '/orcamentos', icon: FileText, label: 'Orçamentos', allowVendedor: true },
+    { path: '/propostas', icon: FileCheck, label: 'Propostas', allowVendedor: true },
+    { path: '/contratos', icon: FileSignature, label: 'Contratos', allowVendedor: true },
+    { path: '/vendedores', icon: DollarSign, label: 'Vendedores', allowVendedor: false },
+    { path: '/equipamentos', icon: Package, label: 'Equipamentos', allowVendedor: false },
+    { path: '/premissas', icon: Settings, label: 'Premissas', allowVendedor: false },
+    { path: '/ia', icon: Zap, label: 'IA Features', allowVendedor: true },
   ];
   
   const handleLogout = () => {
@@ -22,15 +24,22 @@ const Sidebar = () => {
     navigate('/login');
   };
   
+  // Filtra itens do menu baseado no role
+  const filteredMenuItems = isVendedor 
+    ? menuItems.filter(item => item.allowVendedor)
+    : menuItems;
+  
+  if (loading) return null;
+  
   return (
-    <aside className="w-64 bg-primary text-white min-h-screen p-6 flex flex-col">
+    <aside className="w-64 bg-primary text-white h-screen p-6 flex flex-col fixed left-0 top-0 overflow-y-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold">CRM <span className="text-accent">Solar</span></h1>
         <p className="text-gray-400 text-sm mt-1">Sistema de Gestão</p>
       </div>
       
       <nav className="space-y-2 flex-1">
-        {menuItems.map(({ path, icon: Icon, label }) => (
+        {filteredMenuItems.map(({ path, icon: Icon, label }) => (
           <Link
             key={path}
             to={path}

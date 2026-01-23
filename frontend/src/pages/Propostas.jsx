@@ -12,9 +12,10 @@ const Propostas = () => {
   const carregarPropostas = async () => {
     try {
       const response = await propostasAPI.listar();
-      setPropostas(response.data);
+      setPropostas(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro:', error);
+      setPropostas([]);
     }
   };
 

@@ -10,20 +10,21 @@ import Propostas from './pages/Propostas';
 import Contratos from './pages/Contratos';
 import Vendedores from './pages/Vendedores';
 import Equipamentos from './pages/Equipamentos';
-import Premissas from './pages/Premissas';
+// CORREÇÃO: Apontando para o arquivo correto de configuração
+import Premissas from './pages/PremissasConfig'; 
 import IAFeatures from './pages/IAFeatures';
 
 const App = () => {
   const routes = [
-    { path: '/dashboard', component: Dashboard, title: 'Dashboard' },
-    { path: '/clientes', component: Clientes, title: 'Clientes' },
-    { path: '/orcamentos', component: Orcamentos, title: 'Orçamentos' },
-    { path: '/propostas', component: Propostas, title: 'Propostas' },
-    { path: '/contratos', component: Contratos, title: 'Contratos' },
-    { path: '/vendedores', component: Vendedores, title: 'Vendedores' },
-    { path: '/equipamentos', component: Equipamentos, title: 'Equipamentos' },
-    { path: '/premissas', component: Premissas, title: 'Premissas' },
-    { path: '/ia', component: IAFeatures, title: 'IA Features' },
+    { path: '/dashboard', component: Dashboard, title: 'Dashboard', allowVendedor: true },
+    { path: '/clientes', component: Clientes, title: 'Clientes', allowVendedor: true },
+    { path: '/orcamentos', component: Orcamentos, title: 'Orçamentos', allowVendedor: true },
+    { path: '/propostas', component: Propostas, title: 'Propostas', allowVendedor: true },
+    { path: '/contratos', component: Contratos, title: 'Contratos', allowVendedor: true },
+    { path: '/vendedores', component: Vendedores, title: 'Vendedores', allowVendedor: false },
+    { path: '/equipamentos', component: Equipamentos, title: 'Equipamentos', allowVendedor: false },
+    { path: '/premissas', component: Premissas, title: 'Premissas', allowVendedor: false },
+    { path: '/ia', component: IAFeatures, title: 'IA Features', allowVendedor: true },
   ];
 
   return (
@@ -40,7 +41,7 @@ const App = () => {
               <PrivateRoute>
                 <div className="flex min-h-screen">
                   <Sidebar />
-                  <div className="flex-1">
+                  <div className="flex-1 ml-64">
                     <Header title={title} />
                     <main className="p-8">
                       <Component />

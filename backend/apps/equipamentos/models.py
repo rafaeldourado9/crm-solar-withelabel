@@ -28,3 +28,36 @@ class Equipamento(models.Model):
     
     def __str__(self):
         return f"{self.categoria} - {self.item}"
+
+class Painel(models.Model):
+    modelo = models.CharField(max_length=100)
+    fabricante = models.CharField(max_length=100)
+    potencia_w = models.IntegerField(help_text="Potência em Watts")
+    area_m2 = models.DecimalField(max_digits=5, decimal_places=2, default=2.5)
+    eficiencia = models.DecimalField(max_digits=5, decimal_places=2, default=0.21, help_text="Ex: 0.21 = 21%")
+    preco_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'paineis'
+        ordering = ['-potencia_w']
+    
+    def __str__(self):
+        return f"{self.modelo} - {self.potencia_w}W"
+
+class Inversor(models.Model):
+    modelo = models.CharField(max_length=100)
+    fabricante = models.CharField(max_length=100)
+    potencia_w = models.IntegerField(help_text="Potência nominal em Watts")
+    potencia_maxima_w = models.IntegerField(help_text="Potência máxima suportada")
+    preco_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    ativo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'inversores'
+        ordering = ['potencia_w']
+    
+    def __str__(self):
+        return f"{self.modelo} - {self.potencia_w}W"

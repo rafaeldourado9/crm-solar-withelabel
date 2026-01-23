@@ -4,6 +4,7 @@ import { clientesService } from '../services/clientesService';
 
 const Clientes = () => {
   const [clientes, setClientes] = useState([]);
+  const [vendedores, setVendedores] = useState([]);
   const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -14,12 +15,14 @@ const Clientes = () => {
     email: '',
     cidade: '',
     estado: '',
+    vendedor: '',
     status: 'orcamento'
   });
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     carregarClientes();
+    carregarVendedores();
   }, [filtro]);
 
   const carregarClientes = async () => {
@@ -29,6 +32,16 @@ const Clientes = () => {
       setClientes(Array.isArray(response.data) ? response.data : response.data.results || []);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
+    }
+  };
+
+  const carregarVendedores = async () => {
+    try {
+      const response = await clientesService.api.get('/vendedores/');
+      const data = Array.isArray(response.data) ? response.data : response.data.results || [];
+      setVendedores(data.filter(v => v.ativo && !v.bloqueado));
+    } catch (error) {
+      console.error('Erro ao carregar vendedores:', error);
     }
   };
 
@@ -42,7 +55,7 @@ const Clientes = () => {
       }
       setShowModal(false);
       setEditingId(null);
-      setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cidade: '', estado: '', status: 'orcamento' });
+      setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
       carregarClientes();
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
@@ -113,6 +126,7 @@ const Clientes = () => {
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="text-left py-3 px-4 font-semibold">Nome</th>
+                <th className="text-left py-3 px-4 font-semibold">Vendedor</th>
                 <th className="text-left py-3 px-4 font-semibold">Contato</th>
                 <th className="text-left py-3 px-4 font-semibold">Cidade</th>
                 <th className="text-left py-3 px-4 font-semibold">Status</th>
@@ -123,6 +137,13 @@ const Clientes = () => {
               {clientesFiltrados.map((cliente) => (
                 <tr key={cliente.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium">{cliente.nome}</td>
+                  <td className="py-3 px-4">
+                    {cliente.vendedor_nome ? (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-600 rounded text-xs">{cliente.vendedor_nome}</span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Sem vendedor</span>
+                    )}
+                  </td>
                   <td className="py-3 px-4">{cliente.telefone || cliente.email || '-'}</td>
                   <td className="py-3 px-4">{cliente.cidade}</td>
                   <td className="py-3 px-4">
@@ -226,6 +247,20 @@ const Clientes = () => {
                 </div>
                 
                 <div>
+                  <label className="block text-sm font-medium mb-2">Vendedor</label>
+                  <select
+                    className="input"
+                    value={formData.vendedor}
+                    onChange={(e) => setFormData({...formData, vendedor: e.target.value})}
+                  >
+                    <option value="">Selecione um vendedor</option>
+                    {vendedores.map(v => (
+                      <option key={v.id} value={v.id}>{v.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
                   <label className="block text-sm font-medium mb-2">Status</label>
                   <select
                     className="input"
@@ -245,7 +280,7 @@ const Clientes = () => {
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
-                    setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cidade: '', estado: '', status: 'orcamento' });
+                    setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
                   }} 
                   className="btn-outline flex-1"
                 >

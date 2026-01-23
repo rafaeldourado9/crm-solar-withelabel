@@ -3,6 +3,7 @@ from .models import Cliente
 
 class ClienteSerializer(serializers.ModelSerializer):
     criado_por_nome = serializers.CharField(source='criado_por.username', read_only=True)
+    vendedor_nome = serializers.CharField(source='vendedor.nome', read_only=True)
     
     class Meta:
         model = Cliente
