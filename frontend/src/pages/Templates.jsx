@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Upload, FileText, Trash2, Download, Eye, Zap } from 'lucide-react';
 import api from '../services/api';
 import { useToast, ToastContainer } from '../components/Toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { renderAsync } from 'docx-preview';
 
 const Templates = () => {
   const { toasts, showToast, removeToast } = useToast();
   const [templates, setTemplates] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showChavesModal, setShowChavesModal] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, templateId: null });
   const [uploading, setUploading] = useState(false);
+  const previewRef = useRef(null);
   
   const [formData, setFormData] = useState({
     nome: '',
@@ -179,11 +182,23 @@ const Templates = () => {
               </button>
               
               <button
-                onClick={() => window.open(`http://localhost:8000/media/templates/${template.arquivo_nome}`, '_blank')}
+                onClick={async () => {
+                  try {
+                    const response = await api.get(`/templates/${template.id}/?download=true`, { responseType: 'blob' });
+                    setShowPreview(true);
+                    setTimeout(async () => {
+                      if (previewRef.current) {
+                        await renderAsync(response.data, previewRef.current);
+                      }
+                    }, 100);
+                  } catch (error) {
+                    showToast('Erro ao visualizar', 'error');
+                  }
+                }}
                 className="flex-1 btn-accent text-sm py-2 flex items-center justify-center gap-2"
               >
                 <Eye size={16} />
-                Abrir
+                Visualizar
               </button>
             </div>
           </div>
@@ -274,6 +289,21 @@ const Templates = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Preview */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-4 w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Preview do Template</h3>
+              <button onClick={() => setShowPreview(false)} className="text-2xl text-gray-500 hover:text-gray-700">
+                ×
+              </button>
+            </div>
+            <div ref={previewRef} className="w-full flex-1 border rounded overflow-auto bg-white p-4" />
           </div>
         </div>
       )}
