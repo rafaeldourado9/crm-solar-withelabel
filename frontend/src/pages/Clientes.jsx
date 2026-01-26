@@ -1,24 +1,93 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Edit, Trash } from 'lucide-react';
 import { clientesService } from '../services/clientesService';
+import { useToast, ToastContainer } from '../components/Toast';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import api from '../services/api';
 
 const Clientes = () => {
+  const { toasts, showToast, removeToast } = useToast();
   const [clientes, setClientes] = useState([]);
   const [vendedores, setVendedores] = useState([]);
   const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, clienteId: null });
   const [formData, setFormData] = useState({
     nome: '',
     cpf_cnpj: '',
     telefone: '',
     email: '',
+    cep: '',
+    endereco: '',
+    bairro: '',
     cidade: '',
     estado: '',
     vendedor: '',
     status: 'orcamento'
   });
   const [editingId, setEditingId] = useState(null);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+
+  const formatarCEP = (valor) => {
+    const numeros = valor.replace(/\D/g, '').substring(0, 8);
+    if (numeros.length <= 5) return numeros;
+    return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
+  };
+
+  const formatarTelefone = (valor) => {
+    const numeros = valor.replace(/\D/g, '');
+    if (numeros.length <= 2) return numeros;
+    if (numeros.length <= 6) return `(${numeros.slice(0, 2)}) ${numeros.slice(2)}`;
+    if (numeros.length <= 10) return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
+    return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7, 11)}`;
+  };
+
+  const formatarCPFCNPJ = (valor) => {
+    const numeros = valor.replace(/\D/g, '');
+    if (numeros.length <= 11) {
+      // CPF: 000.000.000-00
+      if (numeros.length <= 3) return numeros;
+      if (numeros.length <= 6) return `${numeros.slice(0, 3)}.${numeros.slice(3)}`;
+      if (numeros.length <= 9) return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6)}`;
+      return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9, 11)}`;
+    } else {
+      // CNPJ: 00.000.000/0000-00
+      if (numeros.length <= 2) return numeros;
+      if (numeros.length <= 5) return `${numeros.slice(0, 2)}.${numeros.slice(2)}`;
+      if (numeros.length <= 8) return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5)}`;
+      if (numeros.length <= 12) return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8)}`;
+      return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12, 14)}`;
+    }
+  };
+
+  const buscarCep = async (cep) => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+    
+    setBuscandoCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setFormData({
+          ...formData,
+          cidade: data.localidade,
+          estado: data.uf,
+          endereco: data.logradouro,
+          bairro: data.bairro
+        });
+        showToast('CEP encontrado!', 'success');
+      } else {
+        showToast('CEP não encontrado', 'error');
+      }
+    } catch (error) {
+      showToast('Erro ao buscar CEP', 'error');
+    } finally {
+      setBuscandoCep(false);
+    }
+  };
 
   useEffect(() => {
     carregarClientes();
@@ -37,7 +106,7 @@ const Clientes = () => {
 
   const carregarVendedores = async () => {
     try {
-      const response = await clientesService.api.get('/vendedores/');
+      const response = await api.get('/vendedores/');
       const data = Array.isArray(response.data) ? response.data : response.data.results || [];
       setVendedores(data.filter(v => v.ativo && !v.bloqueado));
     } catch (error) {
@@ -48,79 +117,99 @@ const Clientes = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const dadosParaSalvar = {
+        ...formData,
+        cep: formData.cep.replace(/\D/g, '') // Remove hífen antes de salvar
+      };
+      
       if (editingId) {
-        await clientesService.update(editingId, formData);
+        await clientesService.update(editingId, dadosParaSalvar);
+        showToast('Cliente atualizado com sucesso', 'success');
       } else {
-        await clientesService.create(formData);
+        await clientesService.create(dadosParaSalvar);
+        showToast('Cliente criado com sucesso', 'success');
       }
       setShowModal(false);
       setEditingId(null);
-      setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
+      setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cep: '', endereco: '', bairro: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
       carregarClientes();
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
+      showToast('Erro ao salvar cliente', 'error');
     }
   };
 
   const handleEdit = (cliente) => {
-    setFormData(cliente);
+    setFormData({
+      ...cliente,
+      cep: formatarCEP(cliente.cep || ''),
+      vendedor: cliente.vendedor || '',
+      estado: cliente.estado || ''
+    });
     setEditingId(cliente.id);
     setShowModal(true);
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Deseja realmente excluir este cliente?')) {
-      try {
-        await clientesService.delete(id);
-        carregarClientes();
-      } catch (error) {
-        console.error('Erro ao excluir cliente:', error);
-      }
+    try {
+      await clientesService.delete(id);
+      showToast('Cliente excluído com sucesso', 'success');
+      carregarClientes();
+    } catch (error) {
+      console.error('Erro ao excluir cliente:', error);
+      showToast('Erro ao excluir cliente', 'error');
     }
   };
 
-  const clientesFiltrados = Array.isArray(clientes) ? clientes.filter(c => 
-    c.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    c.cidade.toLowerCase().includes(busca.toLowerCase())
-  ) : [];
+  const clientesFiltrados = Array.isArray(clientes) ? clientes.filter(c => {
+    if (!busca.trim()) return true;
+    const termo = busca.toLowerCase();
+    return (
+      (c.nome || '').toLowerCase().includes(termo) ||
+      (c.cidade || '').toLowerCase().includes(termo) ||
+      (c.vendedor_nome || '').toLowerCase().includes(termo) ||
+      (c.telefone || '').toLowerCase().includes(termo) ||
+      (c.email || '').toLowerCase().includes(termo) ||
+      (c.status || '').toLowerCase().includes(termo)
+    );
+  }) : [];
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, clienteId: null })}
+        onConfirm={() => {
+          handleDelete(confirmDialog.clienteId);
+          setConfirmDialog({ isOpen: false, clienteId: null });
+        }}
+        title="Excluir Cliente"
+        message="Deseja realmente excluir este cliente? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+      />
       <div className="flex justify-between items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar clientes..."
-            className="input pl-10"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
+        <div>
+          <h2 className="text-2xl font-bold">Clientes</h2>
+          <p className="text-gray-600">{clientesFiltrados.length} clientes</p>
         </div>
-        
         <button onClick={() => setShowModal(true)} className="btn-accent flex items-center gap-2">
           <Plus size={20} />
           Novo Cliente
         </button>
       </div>
 
-      <div className="flex gap-2">
-        {['todos', 'orcamento', 'proposta', 'contrato'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFiltro(status)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filtro === status
-                ? 'bg-accent text-primary'
-                : 'bg-white border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </button>
-        ))}
-      </div>
-
       <div className="card">
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Buscar por nome, vendedor, contato, cidade ou status..."
+            className="input pl-10"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -156,12 +245,22 @@ const Clientes = () => {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <button onClick={() => handleEdit(cliente)} className="text-blue-600 hover:text-blue-800 mr-3">
-                      <Edit2 size={18} />
-                    </button>
-                    <button onClick={() => handleDelete(cliente.id)} className="text-red-600 hover:text-red-800">
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex gap-2 justify-end">
+                      <button 
+                        onClick={() => handleEdit(cliente)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Editar"
+                      >
+                        <Edit size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setConfirmDialog({ isOpen: true, clienteId: cliente.id })}
+                        className="text-red-600 hover:text-red-800"
+                        title="Excluir"
+                      >
+                        <Trash size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -200,7 +299,9 @@ const Clientes = () => {
                     type="text"
                     className="input"
                     value={formData.cpf_cnpj}
-                    onChange={(e) => setFormData({...formData, cpf_cnpj: e.target.value})}
+                    onChange={(e) => setFormData({...formData, cpf_cnpj: formatarCPFCNPJ(e.target.value)})}
+                    placeholder="000.000.000-00"
+                    maxLength="18"
                   />
                 </div>
                 
@@ -210,7 +311,9 @@ const Clientes = () => {
                     type="text"
                     className="input"
                     value={formData.telefone}
-                    onChange={(e) => setFormData({...formData, telefone: e.target.value})}
+                    onChange={(e) => setFormData({...formData, telefone: formatarTelefone(e.target.value)})}
+                    placeholder="(00) 00000-0000"
+                    maxLength="15"
                   />
                 </div>
                 
@@ -220,7 +323,48 @@ const Clientes = () => {
                     type="email"
                     className="input"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({...formData, email: e.target.value.toLowerCase()})}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">CEP</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.cep}
+                    onChange={(e) => {
+                      const cepFormatado = formatarCEP(e.target.value);
+                      setFormData({...formData, cep: cepFormatado});
+                      const cepLimpo = cepFormatado.replace(/\D/g, '');
+                      if (cepLimpo.length === 8) {
+                        buscarCep(cepLimpo);
+                      }
+                    }}
+                    placeholder="00000-000"
+                    maxLength="9"
+                  />
+                  {buscandoCep && <span className="text-xs text-blue-600">Buscando...</span>}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Endereço</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.endereco}
+                    onChange={(e) => setFormData({...formData, endereco: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">Bairro</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={formData.bairro}
+                    onChange={(e) => setFormData({...formData, bairro: e.target.value})}
                   />
                 </div>
                 
@@ -237,13 +381,41 @@ const Clientes = () => {
                 
                 <div>
                   <label className="block text-sm font-medium mb-2">Estado</label>
-                  <input
-                    type="text"
+                  <select
                     className="input"
-                    maxLength="2"
                     value={formData.estado}
-                    onChange={(e) => setFormData({...formData, estado: e.target.value.toUpperCase()})}
-                  />
+                    onChange={(e) => setFormData({...formData, estado: e.target.value})}
+                    required
+                  >
+                    <option value="">Selecione...</option>
+                    <option value="AC">Acre</option>
+                    <option value="AL">Alagoas</option>
+                    <option value="AP">Amapá</option>
+                    <option value="AM">Amazonas</option>
+                    <option value="BA">Bahia</option>
+                    <option value="CE">Ceará</option>
+                    <option value="DF">Distrito Federal</option>
+                    <option value="ES">Espírito Santo</option>
+                    <option value="GO">Goiás</option>
+                    <option value="MA">Maranhão</option>
+                    <option value="MT">Mato Grosso</option>
+                    <option value="MS">Mato Grosso do Sul</option>
+                    <option value="MG">Minas Gerais</option>
+                    <option value="PA">Pará</option>
+                    <option value="PB">Paraíba</option>
+                    <option value="PR">Paraná</option>
+                    <option value="PE">Pernambuco</option>
+                    <option value="PI">Piauí</option>
+                    <option value="RJ">Rio de Janeiro</option>
+                    <option value="RN">Rio Grande do Norte</option>
+                    <option value="RS">Rio Grande do Sul</option>
+                    <option value="RO">Rondônia</option>
+                    <option value="RR">Roraima</option>
+                    <option value="SC">Santa Catarina</option>
+                    <option value="SP">São Paulo</option>
+                    <option value="SE">Sergipe</option>
+                    <option value="TO">Tocantins</option>
+                  </select>
                 </div>
                 
                 <div>
@@ -280,7 +452,7 @@ const Clientes = () => {
                   onClick={() => {
                     setShowModal(false);
                     setEditingId(null);
-                    setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
+                    setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cep: '', endereco: '', bairro: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
                   }} 
                   className="btn-outline flex-1"
                 >

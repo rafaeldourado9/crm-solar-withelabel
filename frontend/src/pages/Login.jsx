@@ -20,8 +20,18 @@ const Login = () => {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      console.error('Erro login:', err.response?.data);
-      setError('Usuário ou senha inválidos');
+      console.error('Erro login completo:', JSON.stringify(err, null, 2));
+      console.error('Erro response:', err.response);
+      console.error('Erro message:', err.message);
+      console.error('Erro status:', err.response?.status);
+      console.error('Erro data:', err.response?.data);
+      
+      const mensagemErro = err.response?.data?.detail || 
+                          err.response?.data?.message || 
+                          err.response?.data?.error ||
+                          err.message || 
+                          'Erro ao conectar com o servidor';
+      setError(mensagemErro);
     } finally {
       setLoading(false);
     }

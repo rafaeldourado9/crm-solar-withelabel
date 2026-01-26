@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Settings, Save } from 'lucide-react';
 import { premissasAPI } from '../services/api';
+import { useToast, ToastContainer } from '../components/Toast';
 
 const Premissas = () => {
+  const { toasts, showToast, removeToast } = useToast();
   const [premissa, setPremissa] = useState({
     imposto_percentual: 0,
     comissao_percentual: 0,
@@ -27,6 +29,7 @@ const Premissas = () => {
       }
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao carregar premissas', 'error');
     }
   };
 
@@ -37,14 +40,16 @@ const Premissas = () => {
       } else {
         await premissasAPI.criar(premissa);
       }
-      alert('Premissas salvas com sucesso!');
+      showToast('Premissas salvas com sucesso!', 'success');
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao salvar premissas', 'error');
     }
   };
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="card bg-gradient-to-r from-primary to-gray-800 text-white">
         <div className="flex items-center gap-4">
           <Settings size={48} />
@@ -58,7 +63,7 @@ const Premissas = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
           <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-gray-200">
-            💰 Margens Financeiras
+            Margens Financeiras
           </h3>
           
           <div className="space-y-4">
@@ -99,7 +104,7 @@ const Premissas = () => {
 
         <div className="card">
           <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-gray-200">
-            🔧 Valores de Serviço
+            Valores de Serviço
           </h3>
           
           <div className="space-y-4">
@@ -129,47 +134,7 @@ const Premissas = () => {
 
         <div className="card">
           <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-gray-200">
-            📊 Parâmetros de Cálculo
-          </h3>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Taxa Inflação Anual (%)</label>
-              <input
-                type="number"
-                step="0.01"
-                className="input"
-                value={premissa.taxa_inflacao_anual}
-                onChange={(e) => setPremissa({...premissa, taxa_inflacao_anual: e.target.value})}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Perda Eficiência Sistema (%)</label>
-              <input
-                type="number"
-                step="0.01"
-                className="input"
-                value={premissa.perda_eficiencia_sistema}
-                onChange={(e) => setPremissa({...premissa, perda_eficiencia_sistema: e.target.value})}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">Tempo Vida Mínima (anos)</label>
-              <input
-                type="number"
-                className="input"
-                value={premissa.tempo_vida_minima}
-                onChange={(e) => setPremissa({...premissa, tempo_vida_minima: e.target.value})}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4 pb-3 border-b border-gray-200">
-            ⏱️ Prazos
+            Prazos
           </h3>
           
           <div className="space-y-4">
@@ -185,7 +150,7 @@ const Premissas = () => {
             
             <div className="p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>💡 Dica:</strong> Estas configurações afetam todos os novos orçamentos criados
+                <strong>Dica:</strong> Estas configurações afetam todos os novos orçamentos criados
               </p>
             </div>
           </div>

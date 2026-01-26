@@ -8,9 +8,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('contratos', '0001_initial'),
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
@@ -29,23 +27,6 @@ class Migration(migrations.Migration):
             options={
                 'db_table': 'vendedores',
                 'ordering': ['nome'],
-            },
-        ),
-        migrations.CreateModel(
-            name='VendaVendedor',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('valor_venda', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('valor_comissao', models.DecimalField(decimal_places=2, max_digits=10)),
-                ('data_venda', models.DateField()),
-                ('data_pagamento', models.DateField(blank=True, null=True)),
-                ('pago', models.BooleanField(default=False)),
-                ('contrato', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='contratos.contrato')),
-                ('vendedor', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='vendas', to='vendedores.vendedor')),
-            ],
-            options={
-                'db_table': 'vendas_vendedor',
-                'ordering': ['-data_venda'],
             },
         ),
     ]

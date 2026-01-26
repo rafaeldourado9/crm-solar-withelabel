@@ -27,7 +27,7 @@ class SolarCalculator:
         potencia_sistema = (qtd_paineis * painel.potencia_w) / 1000
         
         # Buscar inversor compatível
-        potencia_minima_inversor = potencia_sistema * 1000 * premissa.overload_inversor
+        potencia_minima_inversor = potencia_sistema * 1000 * float(premissa.overload_inversor)
         inversor = Inversor.objects.filter(
             potencia_w__gte=potencia_minima_inversor,
             ativo=True

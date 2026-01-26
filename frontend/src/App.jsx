@@ -6,12 +6,12 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Clientes from './pages/Clientes';
 import Orcamentos from './pages/Orcamentos';
-import Propostas from './pages/Propostas';
+import OrcamentoDetalhe from './pages/OrcamentoDetalhe';
 import Contratos from './pages/Contratos';
 import Vendedores from './pages/Vendedores';
 import Equipamentos from './pages/Equipamentos';
-// CORREÇÃO: Apontando para o arquivo correto de configuração
-import Premissas from './pages/PremissasConfig'; 
+import Premissas from './pages/PremissasConfig';
+import Templates from './pages/Templates';
 import IAFeatures from './pages/IAFeatures';
 
 const App = () => {
@@ -19,10 +19,10 @@ const App = () => {
     { path: '/dashboard', component: Dashboard, title: 'Dashboard', allowVendedor: true },
     { path: '/clientes', component: Clientes, title: 'Clientes', allowVendedor: true },
     { path: '/orcamentos', component: Orcamentos, title: 'Orçamentos', allowVendedor: true },
-    { path: '/propostas', component: Propostas, title: 'Propostas', allowVendedor: true },
     { path: '/contratos', component: Contratos, title: 'Contratos', allowVendedor: true },
     { path: '/vendedores', component: Vendedores, title: 'Vendedores', allowVendedor: false },
     { path: '/equipamentos', component: Equipamentos, title: 'Equipamentos', allowVendedor: false },
+    { path: '/templates', component: Templates, title: 'Templates', allowVendedor: false },
     { path: '/premissas', component: Premissas, title: 'Premissas', allowVendedor: false },
     { path: '/ia', component: IAFeatures, title: 'IA Features', allowVendedor: true },
   ];
@@ -33,6 +33,23 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         
+        <Route
+          path="/orcamentos/:id"
+          element={
+            <PrivateRoute>
+              <div className="flex min-h-screen">
+                <Sidebar />
+                <div className="flex-1 w-full">
+                  <Header title="Detalhes do Orçamento" />
+                  <main className="p-4 md:p-8">
+                    <OrcamentoDetalhe />
+                  </main>
+                </div>
+              </div>
+            </PrivateRoute>
+          }
+        />
+        
         {routes.map(({ path, component: Component, title }) => (
           <Route
             key={path}
@@ -41,9 +58,9 @@ const App = () => {
               <PrivateRoute>
                 <div className="flex min-h-screen">
                   <Sidebar />
-                  <div className="flex-1 ml-64">
+                  <div className="flex-1 w-full">
                     <Header title={title} />
-                    <main className="p-8">
+                    <main className="p-4 md:p-8">
                       <Component />
                     </main>
                   </div>

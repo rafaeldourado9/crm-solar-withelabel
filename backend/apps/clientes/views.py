@@ -1,5 +1,6 @@
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status, serializers
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Cliente
 from .serializers import ClienteSerializer
@@ -14,18 +15,25 @@ class ClienteViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        # Admin vê todos
         if user.is_staff or user.is_superuser:
             return Cliente.objects.all()
-        # Vendedor vê apenas seus clientes
         if hasattr(user, 'vendedor'):
             return Cliente.objects.filter(vendedor=user.vendedor)
-        # Outros usuários veem os que criaram
         return Cliente.objects.filter(criado_por=user)
     
     def perform_create(self, serializer):
-        # Se usuário é vendedor, associa automaticamente
+        user = self.request.user
         vendedor = None
-        if hasattr(self.request.user, 'vendedor'):
-            vendedor = self.request.user.vendedor
-        serializer.save(criado_por=self.request.user, vendedor=vendedor)
+        
+        if hasattr(user, 'vendedor'):
+            vendedor = user.vendedor
+            cpf_cnpj = serializer.validated_data.get('cpf_cnpj')
+            
+            if cpf_cnpj:
+                cliente_existente = Cliente.objects.filter(cpf_cnpj=cpf_cnpj).exclude(vendedor=vendedor).first()
+                if cliente_existente:
+                    raise serializers.ValidationError({
+                        'cpf_cnpj': f'Cliente já atendido por {cliente_existente.vendedor.nome}'
+                    })
+        
+        serializer.save(criado_por=user, vendedor=vendedor)

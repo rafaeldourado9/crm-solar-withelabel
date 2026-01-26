@@ -9,6 +9,25 @@ class PropostaViewSet(viewsets.ModelViewSet):
     queryset = Proposta.objects.all()
     serializer_class = PropostaSerializer
     
+    def create(self, request, *args, **kwargs):
+        orcamento_id = request.data.get('orcamento')
+        
+        # Buscar orçamento para copiar margens
+        from apps.orcamentos.models import Orcamento
+        orcamento = Orcamento.objects.get(id=orcamento_id)
+        
+        # Adicionar margens do orçamento aos dados da proposta
+        data = request.data.copy()
+        data['margem_lucro_percentual'] = getattr(orcamento, 'margem_lucro_percentual', None)
+        data['comissao_percentual'] = getattr(orcamento, 'comissao_percentual', None)
+        data['imposto_percentual'] = getattr(orcamento, 'imposto_percentual', None)
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
     @action(detail=True, methods=['post'])
     def aceitar(self, request, pk=None):
         proposta = self.get_object()

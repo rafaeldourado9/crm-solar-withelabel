@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Clock, XCircle } from 'lucide-react';
 import { propostasAPI } from '../services/api';
+import { useToast, ToastContainer } from '../components/Toast';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const Propostas = () => {
   const [propostas, setPropostas] = useState([]);
+  const { toasts, showToast, removeToast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, propostaId: null });
 
   useEffect(() => {
     carregarPropostas();
@@ -15,6 +19,7 @@ const Propostas = () => {
       setPropostas(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao carregar propostas', 'error');
       setPropostas([]);
     }
   };
@@ -22,9 +27,11 @@ const Propostas = () => {
   const aceitarProposta = async (id) => {
     try {
       await propostasAPI.aceitar(id);
+      showToast('Proposta aceita com sucesso!', 'success');
       carregarPropostas();
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao aceitar proposta', 'error');
     }
   };
 
@@ -38,6 +45,15 @@ const Propostas = () => {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, propostaId: null })}
+        onConfirm={() => aceitarProposta(confirmDialog.propostaId)}
+        title="Aceitar Proposta"
+        message="Deseja aceitar esta proposta?"
+        confirmText="Aceitar"
+      />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card bg-yellow-50 border-yellow-200">
           <p className="text-sm text-yellow-700">Pendentes</p>
@@ -87,7 +103,7 @@ const Propostas = () => {
                 <td className="py-3 px-4 text-right">
                   {prop.status === 'pendente' && (
                     <button 
-                      onClick={() => aceitarProposta(prop.id)}
+                      onClick={() => setConfirmDialog({ isOpen: true, propostaId: prop.id })}
                       className="btn-accent text-sm py-1 px-4"
                     >
                       Aceitar

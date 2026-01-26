@@ -1,20 +1,40 @@
 from django.db import models
 
 class Premissa(models.Model):
-    hsp_padrao = models.DecimalField(max_digits=5, decimal_places=2, default=4.85, help_text="Horas de Sol Pleno")
-    tarifa_energia_atual = models.DecimalField(max_digits=6, decimal_places=2, default=1.05, help_text="R$/kWh")
-    inflacao_energetica_anual = models.DecimalField(max_digits=5, decimal_places=2, default=10.0, help_text="%")
-    perda_eficiencia_anual = models.DecimalField(max_digits=5, decimal_places=2, default=0.8, help_text="%")
-    perda_padrao = models.DecimalField(max_digits=5, decimal_places=2, default=0.20, help_text="Performance ratio")
-    prazo_entrega_padrao = models.IntegerField(default=45, help_text="Dias")
-    garantia_instalacao_meses = models.IntegerField(default=12)
-    taxas_maquininha = models.JSONField(default=dict, help_text="Ex: {'12': 12.5, '18': 18.3, '24': 25.0}")
-    margem_lucro_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=30.0)
-    overload_inversor = models.DecimalField(max_digits=5, decimal_places=2, default=0.75)
-    imposto_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=0)
-    montagem_por_painel = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    valor_projeto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    # Margens e Serviços
+    margem_lucro_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=18.0, help_text="% de lucro")
+    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=5.0, help_text="% de comissão")
+    imposto_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=6.0, help_text="% de imposto")
+    margem_desconto_avista_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=2.0, help_text="% margem para desconto")
+    montagem_por_painel = models.DecimalField(max_digits=10, decimal_places=2, default=70, help_text="R$ por painel")
+    valor_projeto = models.DecimalField(max_digits=10, decimal_places=2, default=400, help_text="R$ valor fixo")
+    
+    # Parâmetros Técnicos (Opcionais)
+    hsp_padrao = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Horas de Sol Pleno")
+    perda_padrao = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Performance ratio")
+    overload_inversor = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Overload padrão")
+    
+    # Material Elétrico
+    material_eletrico_faixas = models.JSONField(
+        default=dict,
+        help_text="Faixas de potência em kWp"
+    )
+    
+    # Deslocamento
+    cidade_empresa = models.CharField(max_length=200, default='Itaporã, MS', help_text="Cidade sede da empresa")
+    consumo_veiculo_km_por_litro = models.DecimalField(max_digits=5, decimal_places=2, default=10.0, help_text="Km por litro")
+    preco_combustivel_litro = models.DecimalField(max_digits=6, decimal_places=2, default=6.75, help_text="R$ por litro")
+    cidades_sem_cobranca = models.JSONField(
+        default=list,
+        help_text="Cidades sem cobrança de deslocamento"
+    )
+    
+    # Parcelamento
+    taxas_maquininha = models.JSONField(
+        default=dict,
+        help_text="Taxas por quantidade de parcelas"
+    )
+    
     ativo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -28,4 +48,20 @@ class Premissa(models.Model):
     
     @classmethod
     def get_ativa(cls):
-        return cls.objects.filter(ativo=True).first() or cls.objects.create()
+        premissa = cls.objects.filter(ativo=True).first()
+        if not premissa:
+            premissa = cls.objects.create(
+                margem_lucro_percentual=18.0,
+                comissao_percentual=5.0,
+                imposto_percentual=6.0,
+                margem_desconto_avista_percentual=2.0,
+                montagem_por_painel=70,
+                valor_projeto=400,
+                material_eletrico_faixas={'3': 250, '5': 350, '6': 400, '8': 500, '10': 900},
+                cidade_empresa='Itaporã, MS',
+                consumo_veiculo_km_por_litro=10.0,
+                preco_combustivel_litro=6.75,
+                cidades_sem_cobranca=['Itaporã', 'Dourados'],
+                taxas_maquininha={'2': 2.5, '3': 3.5, '6': 5.0, '12': 8.0}
+            )
+        return premissa

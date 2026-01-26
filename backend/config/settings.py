@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.orcamentos',
     'apps.propostas',
     'apps.contratos',
+    'apps.templates',
 ]
 
 MIDDLEWARE = [
@@ -97,6 +98,10 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Aumentar limite de upload para 50MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
@@ -112,3 +117,6 @@ CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = config('CORS_ORIGINS', default='http://localhost:5173').split(',')
+
+# Google Maps API
+GOOGLE_MAPS_API_KEY = config('GOOGLE_MAPS_API_KEY', default='')

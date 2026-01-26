@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Settings, Save } from 'lucide-react';
 import api from '../services/api';
+import { useToast, ToastContainer } from '../components/Toast';
 
 const PremissasConfig = () => {
+  const { toasts, showToast, removeToast } = useToast();
   const [premissa, setPremissa] = useState(null);
   const [loading, setLoading] = useState(false);
   const [taxas, setTaxas] = useState({ '12': '', '18': '', '24': '' });
+  const [materialEletrico, setMaterialEletrico] = useState({});
 
   useEffect(() => {
     carregarPremissa();
@@ -18,9 +21,12 @@ const PremissasConfig = () => {
       if (response.data.taxas_maquininha) {
         setTaxas(response.data.taxas_maquininha);
       }
+      if (response.data.material_eletrico_faixas) {
+        setMaterialEletrico(response.data.material_eletrico_faixas);
+      }
     } catch (error) {
       console.error('Erro ao carregar premissas:', error);
-      alert('Não foi possível carregar as configurações.');
+      showToast('Erro ao carregar configurações', 'error');
     }
   };
 
@@ -38,13 +44,14 @@ const PremissasConfig = () => {
             '18': Number(taxas['18']) || 0,
             '24': Number(taxas['24']) || 0
         },
+        // Material elétrico
+        material_eletrico_faixas: materialEletrico,
         // Garante precisão correta para evitar erro 400 do Django
         perda_padrao: Number(premissa.perda_padrao).toFixed(2), 
         hsp_padrao: Number(premissa.hsp_padrao).toFixed(2),
         tarifa_energia_atual: Number(premissa.tarifa_energia_atual).toFixed(2),
         inflacao_energetica_anual: Number(premissa.inflacao_energetica_anual).toFixed(2),
         perda_eficiencia_anual: Number(premissa.perda_eficiencia_anual).toFixed(2),
-        overload_inversor: Number(premissa.overload_inversor).toFixed(2),
         
         // Novos campos adicionados (Margens e Serviços)
         margem_lucro_percentual: Number(premissa.margem_lucro_percentual).toFixed(2),
@@ -59,20 +66,13 @@ const PremissasConfig = () => {
       };
 
       await api.put(`/premissas/${premissa.id}/`, dadosParaEnviar);
-      alert('Premissas atualizadas com sucesso!');
+      showToast('Premissas atualizadas com sucesso!', 'success');
       
       carregarPremissa(); 
 
     } catch (error) {
       console.error('Erro detalhado:', error.response?.data);
-      let msg = 'Erro ao atualizar.';
-      if (error.response?.data) {
-        const erros = Object.entries(error.response.data)
-          .map(([campo, erro]) => `${campo}: ${erro}`)
-          .join('\n');
-        msg += `\n\nDetalhes:\n${erros}`;
-      }
-      alert(msg);
+      showToast('Erro ao atualizar premissas', 'error');
     } finally {
       setLoading(false);
     }
@@ -82,6 +82,7 @@ const PremissasConfig = () => {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="flex items-center gap-3 mb-6">
         <Settings size={32} className="text-accent" />
         <h2 className="text-2xl font-bold">Configurações Globais</h2>
@@ -92,7 +93,7 @@ const PremissasConfig = () => {
         {/* PARÂMETROS TÉCNICOS */}
         <div className="card bg-base-100 shadow p-6 rounded-lg">
           <h3 className="font-semibold text-lg mb-4 border-b pb-2">Parâmetros Técnicos</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">HSP Padrão (h)</label>
               <input
@@ -117,17 +118,6 @@ const PremissasConfig = () => {
                 onChange={(e) => setPremissa({...premissa, perda_padrao: e.target.value / 100})}
               />
               <span className="text-xs text-gray-500">Ex: 20 para 20%</span>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Overload Inversor</label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                className="input input-bordered w-full"
-                value={premissa.overload_inversor}
-                onChange={(e) => setPremissa({...premissa, overload_inversor: e.target.value})}
-              />
             </div>
           </div>
         </div>
@@ -165,6 +155,17 @@ const PremissasConfig = () => {
                 value={premissa.imposto_percentual}
                 onChange={(e) => setPremissa({...premissa, imposto_percentual: e.target.value})}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Margem Desconto À Vista (%)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={premissa.margem_desconto_avista_percentual || 5}
+                onChange={(e) => setPremissa({...premissa, margem_desconto_avista_percentual: e.target.value})}
+              />
+              <span className="text-xs text-gray-500">Margem para dar desconto à vista</span>
             </div>
             <div>
               <label className="block text-sm font-medium mb-2">Montagem/Painel (R$)</label>
@@ -286,6 +287,126 @@ const PremissasConfig = () => {
                 className="input input-bordered w-full"
                 value={taxas['24']}
                 onChange={(e) => setTaxas({...taxas, '24': e.target.value})}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* DESLOCAMENTO */}
+        <div className="card bg-base-100 shadow p-6 rounded-lg">
+          <h3 className="font-semibold text-lg mb-4 border-b pb-2">Deslocamento</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-2">Cidade da Empresa</label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                value={premissa.cidade_empresa || 'Dourados, MS'}
+                onChange={(e) => setPremissa({...premissa, cidade_empresa: e.target.value})}
+                placeholder="Ex: Dourados, MS"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Consumo Veículo (km/L)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="input input-bordered w-full"
+                value={premissa.consumo_veiculo_km_por_litro || 8}
+                onChange={(e) => setPremissa({...premissa, consumo_veiculo_km_por_litro: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Preço Combustível (R$/L)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={premissa.preco_combustivel_litro || 6.5}
+                onChange={(e) => setPremissa({...premissa, preco_combustivel_litro: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Margem Deslocamento (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                className="input input-bordered w-full"
+                value={premissa.margem_deslocamento_percentual || 20}
+                onChange={(e) => setPremissa({...premissa, margem_deslocamento_percentual: e.target.value})}
+              />
+              <span className="text-xs text-gray-500">Margem sobre o custo real</span>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-2">Cidades Sem Cobrança (separadas por vírgula)</label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                value={(premissa.cidades_sem_cobranca || []).join(', ')}
+                onChange={(e) => setPremissa({...premissa, cidades_sem_cobranca: e.target.value.split(',').map(c => c.trim())})}
+                placeholder="Ex: Dourados, Itaporã, Fátima do Sul"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* MATERIAL ELÉTRICO */}
+        <div className="card bg-base-100 shadow p-6 rounded-lg">
+          <h3 className="font-semibold text-lg mb-4 border-b pb-2">Material Elétrico por Faixa de Potência</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Até 3 kWp (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={materialEletrico['3'] || ''}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '3': Number(e.target.value)})}
+                placeholder="250"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Até 5 kWp (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={materialEletrico['5'] || ''}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '5': Number(e.target.value)})}
+                placeholder="350"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Até 6 kWp (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={materialEletrico['6'] || ''}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '6': Number(e.target.value)})}
+                placeholder="400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Até 8 kWp (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={materialEletrico['8'] || ''}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '8': Number(e.target.value)})}
+                placeholder="500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Até 10 kWp (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                className="input input-bordered w-full"
+                value={materialEletrico['10'] || ''}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '10': Number(e.target.value)})}
+                placeholder="900"
               />
             </div>
           </div>

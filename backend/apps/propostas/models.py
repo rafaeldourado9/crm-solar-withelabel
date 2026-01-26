@@ -32,6 +32,11 @@ class Proposta(models.Model):
     pdf_proposta = models.FileField(upload_to='propostas/', null=True, blank=True)
     convertido_contrato = models.BooleanField(default=False)
     
+    # Margens personalizadas (salvas no momento da criação/edição)
+    margem_lucro_percentual = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    imposto_percentual = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
     class Meta:
         db_table = 'propostas'
         ordering = ['-data_criacao']

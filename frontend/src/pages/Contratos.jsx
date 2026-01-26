@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { FileSignature, Download } from 'lucide-react';
 import { contratosAPI } from '../services/api';
+import { useToast, ToastContainer } from '../components/Toast';
 
 const Contratos = () => {
   const [contratos, setContratos] = useState([]);
+  const { toasts, showToast, removeToast } = useToast();
 
   useEffect(() => {
     carregarContratos();
@@ -15,12 +17,23 @@ const Contratos = () => {
       setContratos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao carregar contratos', 'error');
       setContratos([]);
+    }
+  };
+
+  const baixarPDF = async (id) => {
+    try {
+      showToast('Gerando PDF...', 'success');
+      // Implementar download quando backend estiver pronto
+    } catch (error) {
+      showToast('Erro ao gerar PDF', 'error');
     }
   };
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="card bg-green-50 border-green-200">
         <div className="flex items-center justify-between">
           <div>

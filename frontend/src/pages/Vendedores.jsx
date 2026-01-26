@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash, Lock, Unlock, TrendingUp, UserCheck, Key } from 'lucide-react';
 import api from '../services/api';
+import { useToast, ToastContainer } from '../components/Toast';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const Vendedores = () => {
   const [vendedores, setVendedores] = useState([]);
@@ -8,6 +10,8 @@ const Vendedores = () => {
   const [showResumo, setShowResumo] = useState(false);
   const [vendedorSelecionado, setVendedorSelecionado] = useState(null);
   const [resumo, setResumo] = useState(null);
+  const { toasts, showToast, removeToast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, action: null, vendedorId: null });
   const [formData, setFormData] = useState({
     nome: '',
     cpf: '',
@@ -28,6 +32,7 @@ const Vendedores = () => {
       setVendedores(data);
     } catch (error) {
       console.error('Erro ao carregar vendedores:', error);
+      showToast('Erro ao carregar vendedores', 'error');
       setVendedores([]);
     }
   };
@@ -37,37 +42,39 @@ const Vendedores = () => {
     try {
       if (formData.id) {
         await api.put(`/vendedores/${formData.id}/`, formData);
-        alert('Vendedor atualizado com sucesso!');
+        showToast('Vendedor atualizado com sucesso!', 'success');
       } else {
         await api.post('/vendedores/', formData);
-        alert(`Vendedor criado com sucesso!\n\nCredenciais de acesso:\nEmail: ${formData.email}\nSenha: ${formData.senha}\n\nGuarde essas informações!`);
+        showToast(`Vendedor criado! Email: ${formData.email}`, 'success');
       }
       setShowModal(false);
       setFormData({ nome: '', cpf: '', telefone: '', email: '', senha: '', tipo: 'vendedor' });
       carregarVendedores();
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      alert('Erro ao salvar vendedor');
+      showToast('Erro ao salvar vendedor', 'error');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Deseja excluir este vendedor?')) return;
     try {
       await api.delete(`/vendedores/${id}/`);
+      showToast('Vendedor excluído com sucesso!', 'success');
       carregarVendedores();
     } catch (error) {
       console.error('Erro:', error);
-      alert('Erro ao excluir vendedor');
+      showToast('Erro ao excluir vendedor', 'error');
     }
   };
 
   const handleBloquear = async (id) => {
     try {
       await api.post(`/vendedores/${id}/bloquear/`);
+      showToast('Status atualizado com sucesso!', 'success');
       carregarVendedores();
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao atualizar status', 'error');
     }
   };
 
@@ -76,13 +83,13 @@ const Vendedores = () => {
     if (novaSenha && novaSenha.length >= 6) {
       try {
         await api.post(`/vendedores/${id}/resetar_senha/`, { senha: novaSenha });
-        alert(`Senha resetada com sucesso!\nNova senha: ${novaSenha}`);
+        showToast('Senha resetada com sucesso!', 'success');
       } catch (error) {
         console.error('Erro:', error);
-        alert('Erro ao resetar senha');
+        showToast('Erro ao resetar senha', 'error');
       }
     } else if (novaSenha) {
-      alert('Senha deve ter no mínimo 6 caracteres');
+      showToast('Senha deve ter no mínimo 6 caracteres', 'warning');
     }
   };
 
@@ -94,11 +101,26 @@ const Vendedores = () => {
       setShowResumo(true);
     } catch (error) {
       console.error('Erro:', error);
+      showToast('Erro ao carregar resumo', 'error');
     }
+  };
+
+  const executeConfirmAction = () => {
+    const { action, vendedorId } = confirmDialog;
+    if (action === 'delete') handleDelete(vendedorId);
   };
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, action: null, vendedorId: null })}
+        onConfirm={executeConfirmAction}
+        title={confirmDialog.action === 'delete' ? 'Excluir Vendedor' : 'Confirmar'}
+        message={confirmDialog.action === 'delete' ? 'Deseja excluir este vendedor?' : ''}
+        confirmText="Confirmar"
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Users size={32} className="text-accent" />
@@ -204,7 +226,7 @@ const Vendedores = () => {
                       {vendedor.bloqueado ? <Unlock size={18} /> : <Lock size={18} />}
                     </button>
                     <button 
-                      onClick={() => handleDelete(vendedor.id)} 
+                      onClick={() => setConfirmDialog({ isOpen: true, action: 'delete', vendedorId: vendedor.id })} 
                       className="text-red-600 hover:text-red-800"
                     >
                       <Trash size={18} />

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Package, Plus, Edit, Trash, AlertCircle, Search } from 'lucide-react';
 import api from '../services/api';
+import { useToast, ToastContainer } from '../components/Toast';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const Equipamentos = () => {
   const [categoria, setCategoria] = useState('inversores');
@@ -14,12 +16,15 @@ const Equipamentos = () => {
   const observerTarget = useRef(null);
   const loadingRef = useRef(false);
   const cacheRef = useRef({});
+  const { toasts, showToast, removeToast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, equipamentoId: null });
   
   const [formData, setFormData] = useState({
     modelo: '',
     fabricante: '',
     potencia_w: '',
-    potencia_maxima_w: ''
+    potencia_maxima_w: '',
+    overload: '0.70'
   });
 
   const categorias = [
@@ -76,6 +81,7 @@ const Equipamentos = () => {
       setHasMore(!!response.data.next);
     } catch (error) {
       console.error('Erro ao carregar:', error);
+      showToast('Erro ao carregar equipamentos', 'error');
       if (!append) {
         setEquipamentos([]);
       }
@@ -125,7 +131,8 @@ const Equipamentos = () => {
         ...formData,
         potencia_w: parseInt(formData.potencia_w),
         ...(categoria === 'inversores' && { 
-            potencia_maxima_w: parseInt(formData.potencia_maxima_w || formData.potencia_w) 
+            potencia_maxima_w: parseInt(formData.potencia_maxima_w || formData.potencia_w),
+            overload: parseFloat(formData.overload)
         })
       };
 
@@ -138,21 +145,20 @@ const Equipamentos = () => {
       }
       
       setShowModal(false);
-      setFormData({ modelo: '', fabricante: '', potencia_w: '', potencia_maxima_w: '' });
+      setFormData({ modelo: '', fabricante: '', potencia_w: '', potencia_maxima_w: '', overload: '0.70' });
       cacheRef.current = {};
       setEquipamentos([]);
       setPage(1);
       setHasMore(true);
       carregarEquipamentos(1, false);
-      alert('Equipamento salvo com sucesso!');
+      showToast('Equipamento salvo com sucesso!', 'success');
     } catch (error) {
       console.error('Erro ao salvar:', error.response?.data || error);
-      alert(`Erro ao salvar: ${JSON.stringify(error.response?.data || 'Verifique o console')}`);
+      showToast('Erro ao salvar equipamento', 'error');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Deseja excluir este equipamento?')) return;
     try {
       await api.delete(`${getEndpoint()}${id}/`);
       cacheRef.current = {};
@@ -160,14 +166,24 @@ const Equipamentos = () => {
       setPage(1);
       setHasMore(true);
       carregarEquipamentos(1, false);
+      showToast('Equipamento excluído com sucesso!', 'success');
     } catch (error) {
       console.error('Erro:', error);
-      alert('Erro ao excluir item.');
+      showToast('Erro ao excluir equipamento', 'error');
     }
   };
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, equipamentoId: null })}
+        onConfirm={() => handleDelete(confirmDialog.equipamentoId)}
+        title="Excluir Equipamento"
+        message="Deseja excluir este equipamento?"
+        confirmText="Excluir"
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Package size={32} className="text-accent" />
@@ -175,7 +191,7 @@ const Equipamentos = () => {
         </div>
         <button 
           onClick={() => { 
-            setFormData({ modelo: '', fabricante: '', potencia_w: '', potencia_maxima_w: '' }); 
+            setFormData({ modelo: '', fabricante: '', potencia_w: '', potencia_maxima_w: '', overload: '0.70' }); 
             setShowModal(true); 
           }} 
           className="btn-accent flex items-center gap-2"
@@ -257,7 +273,7 @@ const Equipamentos = () => {
                     >
                       <Edit size={18} />
                     </button>
-                    <button onClick={() => handleDelete(equip.id)} className="text-red-600 hover:text-red-800">
+                    <button onClick={() => setConfirmDialog({ isOpen: true, equipamentoId: equip.id })} className="text-red-600 hover:text-red-800">
                       <Trash size={18} />
                     </button>
                   </td>
@@ -337,6 +353,23 @@ const Equipamentos = () => {
                   </div>
                 )}
               </div>
+              
+              {categoria === 'inversores' && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">Overload (%)</label>
+                  <select
+                    className="input w-full"
+                    value={formData.overload}
+                    onChange={(e) => setFormData({...formData, overload: e.target.value})}
+                    required
+                  >
+                    <option value="0.50">50%</option>
+                    <option value="0.60">60%</option>
+                    <option value="0.70">70%</option>
+                    <option value="0.80">80%</option>
+                  </select>
+                </div>
+              )}
               
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Users, FileText, TrendingUp, Clock } from 'lucide-react';
 import { clientesService } from '../services/clientesService';
+import { useToast, ToastContainer } from '../components/Toast';
 
 const Dashboard = () => {
+  const { toasts, showToast, removeToast } = useToast();
   const [stats, setStats] = useState({
     total_clientes: 0,
     novos_leads: 0,
@@ -18,6 +20,7 @@ const Dashboard = () => {
         setStats(response.data);
       } catch (error) {
         console.error('Erro ao carregar estatísticas:', error);
+        showToast('Erro ao carregar estatísticas', 'error');
       } finally {
         setLoading(false);
       }
@@ -38,6 +41,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {cards.map((card) => (
           <div key={card.title} className="card">
