@@ -4,7 +4,6 @@ class Template(models.Model):
     TIPO_CHOICES = [
         ('orcamento', 'Orçamento'),
         ('contrato', 'Contrato'),
-        ('proposta', 'Proposta'),
     ]
     
     nome = models.CharField(max_length=255)

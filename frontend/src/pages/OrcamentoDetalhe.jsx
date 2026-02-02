@@ -193,23 +193,30 @@ const OrcamentoDetalhe = () => {
                 const response = await api.get(`/orcamentos/${id}/gerar-pdf-dimensionamento/`, {
                   responseType: 'blob'
                 });
+                
+                // Detectar tipo de arquivo pela resposta
+                const contentType = response.headers['content-type'];
+                const isPdf = contentType.includes('application/pdf');
+                const extension = isPdf ? 'pdf' : 'docx';
+                
                 const url = window.URL.createObjectURL(new Blob([response.data]));
                 const link = document.createElement('a');
                 link.href = url;
-                link.setAttribute('download', `Dimensionamento_${orcamento.numero}.pdf`);
+                link.setAttribute('download', `Orcamento_${orcamento.numero}.${extension}`);
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                showToast('PDF gerado com sucesso!', 'success');
+                window.URL.revokeObjectURL(url);
+                showToast('Orçamento gerado com sucesso!', 'success');
               } catch (error) {
                 console.error('Erro:', error);
-                showToast('Erro ao gerar PDF', 'error');
+                showToast(error.response?.data?.error || 'Erro ao gerar orçamento', 'error');
               }
             }}
             className="btn-primary flex items-center gap-2"
           >
             <FileText size={20} />
-            Gerar PDF Dimensionamento
+            Gerar PDF
           </button>
           {editando ? (
             <>

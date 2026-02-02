@@ -1,154 +1,139 @@
 from docx import Document
-from docx.shared import Inches
-import re
-from decimal import Decimal
 from io import BytesIO
+from decimal import Decimal
+from datetime import datetime, timedelta
 
 class TemplateProcessorService:
-    """
-    Processa templates Word/DOCX e substitui chaves pelos valores reais
-    """
     
     @staticmethod
     def processar_template(template_path, orcamento, premissa, cliente):
-        """
-        Processa um template DOCX e substitui todas as chaves
-        """
+        """Processa template DOCX substituindo variáveis"""
         doc = Document(template_path)
         
-        # Montar dicionário de substituições
-        substituicoes = TemplateProcessorService._montar_substituicoes(orcamento, premissa, cliente)
+        # Preparar dados
+        dados = TemplateProcessorService._preparar_dados(orcamento, premissa, cliente)
         
         # Substituir em parágrafos
         for paragrafo in doc.paragraphs:
-            TemplateProcessorService._substituir_texto(paragrafo, substituicoes)
+            TemplateProcessorService._substituir_texto(paragrafo, dados)
         
         # Substituir em tabelas
-        for tabela in doc.tables:
-            for linha in tabela.rows:
-                for celula in linha.cells:
-                    for paragrafo in celula.paragraphs:
-                        TemplateProcessorService._substituir_texto(paragrafo, substituicoes)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragrafo in cell.paragraphs:
+                        TemplateProcessorService._substituir_texto(paragrafo, dados)
         
         # Salvar em buffer
         buffer = BytesIO()
         doc.save(buffer)
         buffer.seek(0)
+        
         return buffer
     
     @staticmethod
-    def _montar_substituicoes(orcamento, premissa, cliente):
-        """
-        Monta dicionário com todas as chaves e valores
-        """
-        potencia_total_kwp = (orcamento.quantidade_paineis * orcamento.potencia_painel) / 1000
-        geracao_mensal = potencia_total_kwp * float(premissa.hsp_padrao) * 30 * (1 - float(premissa.perda_padrao))
-        geracao_anual = geracao_mensal * 12
+    def _substituir_texto(paragrafo, dados):
+        """Substitui {{CHAVE}} pelos valores"""
+        texto_completo = paragrafo.text
         
-        # Calcular payback
-        economia_mensal = geracao_mensal * float(premissa.tarifa_energia_atual)
-        payback_meses = float(orcamento.valor_final) / economia_mensal if economia_mensal > 0 else 0
-        payback_anos = payback_meses / 12
+        for chave, valor in dados.items():
+            placeholder = f'{{{{{chave}}}}}'
+            if placeholder in texto_completo:
+                texto_completo = texto_completo.replace(placeholder, str(valor))
         
-        return {
-            # Orçamento
-            '{{NUMERO_ORCAMENTO}}': orcamento.numero,
-            '{{DATA_CRIACAO}}': orcamento.data_criacao.strftime('%d/%m/%Y'),
-            '{{NOME_KIT}}': orcamento.nome_kit,
-            '{{VALIDADE_PROPOSTA_DIAS}}': str(orcamento.validade_dias),
-            
-            # Cliente
-            '{{CLIENTE_NOME}}': cliente.nome,
-            '{{CLIENTE_CPF_CNPJ}}': cliente.cpf_cnpj or '',
-            '{{CLIENTE_TELEFONE}}': cliente.telefone or '',
-            '{{CLIENTE_EMAIL}}': cliente.email or '',
-            '{{CLIENTE_ENDERECO}}': cliente.endereco or '',
-            '{{CLIENTE_BAIRRO}}': cliente.bairro or '',
-            '{{CLIENTE_CIDADE}}': cliente.cidade,
-            '{{CLIENTE_ESTADO}}': cliente.estado,
-            '{{CLIENTE_CEP}}': cliente.cep or '',
-            
-            # Painéis
-            '{{PAINEIS_QTD}}': str(orcamento.quantidade_paineis),
-            '{{PAINEIS_MARCA}}': orcamento.marca_painel,
-            '{{PAINEIS_POTENCIA}}': str(orcamento.potencia_painel),
-            '{{PAINEIS_POTENCIA_TOTAL}}': str(orcamento.quantidade_paineis * orcamento.potencia_painel),
-            
-            # Inversor
-            '{{INVERSOR_QTD}}': str(orcamento.quantidade_inversores),
-            '{{INVERSOR_MARCA}}': orcamento.marca_inversor,
-            '{{INVERSOR_POTENCIA}}': str(orcamento.potencia_inversor),
-            
-            # Técnico
-            '{{POTENCIA_TOTAL_KWP}}': f'{potencia_total_kwp:.2f}',
-            '{{GERACAO_ESTIMADA_KWH}}': f'{geracao_mensal:.0f}',
-            '{{GERACAO_ANUAL_KWH}}': f'{geracao_anual:.0f}',
-            '{{HSP}}': str(premissa.hsp_padrao),
-            '{{PERDA_SISTEMA}}': f'{float(premissa.perda_padrao) * 100:.1f}',
-            '{{TIPO_ESTRUTURA}}': orcamento.get_tipo_estrutura_display(),
-            
-            # Valores
-            '{{VALOR_KIT}}': f'{float(orcamento.valor_kit):,.2f}',
-            '{{VALOR_PROJETO}}': f'{float(premissa.valor_projeto):,.2f}',
-            '{{VALOR_MONTAGEM}}': f'{float(premissa.montagem_por_painel * orcamento.quantidade_paineis):,.2f}',
-            '{{VALOR_ESTRUTURA}}': f'{float(orcamento.valor_estrutura):,.2f}',
-            '{{VALOR_MATERIAL_ELETRICO}}': f'{float(orcamento.valor_material_eletrico):,.2f}',
-            '{{CUSTO_TOTAL}}': f'{float(orcamento.valor_total):,.2f}',
-            '{{VALOR_FINAL}}': f'{float(orcamento.valor_final):,.2f}',
-            
-            # Financeiro
-            '{{FORMA_PAGAMENTO}}': orcamento.forma_pagamento,
-            '{{NUMERO_PARCELAS}}': orcamento.forma_pagamento if orcamento.forma_pagamento != 'avista' else '1',
-            '{{VALOR_PARCELA}}': f'{float(orcamento.valor_parcela):,.2f}' if orcamento.valor_parcela else f'{float(orcamento.valor_final):,.2f}',
-            '{{TAXA_JUROS}}': str(orcamento.taxa_juros),
-            
-            # Margens
-            '{{COMISSAO_PERCENTUAL}}': str(orcamento.comissao_percentual or premissa.comissao_percentual),
-            '{{IMPOSTO_PERCENTUAL}}': str(orcamento.imposto_percentual or premissa.imposto_percentual),
-            '{{LUCRO_PERCENTUAL}}': str(orcamento.margem_lucro_percentual or premissa.margem_lucro_percentual),
-            
-            # Prazos
-            '{{PRAZO_ENTREGA}}': str(premissa.prazo_entrega_padrao),
-            '{{GARANTIA_INSTALACAO}}': str(premissa.garantia_instalacao_meses),
-            
-            # Análise
-            '{{ECONOMIA_MENSAL}}': f'{economia_mensal:,.2f}',
-            '{{PAYBACK_ANOS}}': f'{payback_anos:.1f}',
-            '{{TARIFA_ENERGIA}}': f'{float(premissa.tarifa_energia_atual):.4f}',
-            
-            # Vendedor (se houver)
-            '{{VENDEDOR_NOME}}': orcamento.vendedor.nome if orcamento.vendedor else '',
-            '{{VENDEDOR_TELEFONE}}': orcamento.vendedor.telefone if orcamento.vendedor else '',
-            '{{VENDEDOR_EMAIL}}': orcamento.vendedor.email if orcamento.vendedor else '',
-        }
-    
-    @staticmethod
-    def _substituir_texto(paragrafo, substituicoes):
-        """
-        Substitui chaves no texto mantendo formatação
-        Suporta {{CHAVE}} e [chave]
-        """
-        texto_completo = ''.join([run.text for run in paragrafo.runs])
-        
-        # Verificar se há chaves no texto
-        if ('{{' in texto_completo and '}}' in texto_completo) or ('[' in texto_completo and ']' in texto_completo):
-            # Substituir todas as chaves {{}}
-            for chave, valor in substituicoes.items():
-                texto_completo = texto_completo.replace(chave, valor)
-            
-            # Substituir chaves [] convertendo para maiúsculas
-            import re
-            def substituir_colchetes(match):
-                chave_original = match.group(1)
-                chave_upper = '{{' + chave_original.upper().replace(' ', '_') + '}}'
-                return substituicoes.get(chave_upper, match.group(0))
-            
-            texto_completo = re.sub(r'\[([^\]]+)\]', substituir_colchetes, texto_completo)
-            
-            # Limpar runs e adicionar texto substituído
+        # Atualizar runs mantendo formatação
+        if texto_completo != paragrafo.text:
             for run in paragrafo.runs:
                 run.text = ''
             if paragrafo.runs:
                 paragrafo.runs[0].text = texto_completo
             else:
                 paragrafo.add_run(texto_completo)
+    
+    @staticmethod
+    def _preparar_dados(orcamento, premissa, cliente):
+        """Prepara dicionário com todos os dados"""
+        
+        # Calcular valores
+        potencia_kwp = (orcamento.potencia_painel * orcamento.quantidade_paineis) / 1000
+        hsp = float(premissa.hsp_padrao) if premissa.hsp_padrao else 4.5
+        perda = float(premissa.perda_padrao) if premissa.perda_padrao else 20.0
+        geracao_mensal = potencia_kwp * hsp * 30 * (1 - perda / 100)
+        
+        # Data de validade
+        data_validade = orcamento.data_criacao + timedelta(days=orcamento.validade_dias)
+        
+        # Forma de pagamento
+        forma_pagamento_texto = 'À vista'
+        if orcamento.forma_pagamento != 'avista':
+            parcelas = int(orcamento.forma_pagamento)
+            forma_pagamento_texto = f'{parcelas}x de R$ {orcamento.valor_parcela:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+        
+        dados = {
+            # Orçamento
+            'NUMERO_ORCAMENTO': orcamento.numero,
+            'DATA_ORCAMENTO': orcamento.data_criacao.strftime('%d/%m/%Y'),
+            'DATA_CRIACAO': orcamento.data_criacao.strftime('%d/%m/%Y'),  # Alias
+            'DATA_VALIDADE': data_validade.strftime('%d/%m/%Y'),
+            
+            # Cliente
+            'NOME_CLIENTE': cliente.nome,
+            'CLIENTE_NOME': cliente.nome,  # Alias
+            'CPF_CNPJ': cliente.cpf_cnpj or '',
+            'TELEFONE': cliente.telefone or '',
+            'EMAIL': cliente.email or '',
+            'ENDERECO': cliente.endereco or '',
+            'CLIENTE_ENDERECO': cliente.endereco or '',  # Alias
+            'CIDADE': cliente.cidade or '',
+            'CLIENTE_CIDADE': cliente.cidade or '',  # Alias
+            'ESTADO': cliente.estado or '',
+            'CLIENTE_ESTADO': cliente.estado or '',  # Alias,
+            
+            # Sistema
+            'POTENCIA_KWP': f'{potencia_kwp:.2f}',
+            'POTENCIA_TOTAL_KWP': f'{potencia_kwp:.2f}',  # Alias
+            'GERACAO_MENSAL': f'{geracao_mensal:.0f}',
+            'GERACAO_ANUAL': f'{geracao_mensal * 12:.0f}',
+            
+            # Equipamentos
+            'MARCA_PAINEL': orcamento.marca_painel,
+            'PAINEIS_MARCA': orcamento.marca_painel,  # Alias
+            'POTENCIA_PAINEL': orcamento.potencia_painel,
+            'PAINEIS_POTENCIA': orcamento.potencia_painel,  # Alias
+            'QUANTIDADE_PAINEIS': orcamento.quantidade_paineis,
+            'PAINEIS_QTD': orcamento.quantidade_paineis,  # Alias
+            'MARCA_INVERSOR': orcamento.marca_inversor,
+            'INVERSOR_MARCA': orcamento.marca_inversor,  # Alias
+            'POTENCIA_INVERSOR': orcamento.potencia_inversor,
+            'INVERSOR_POTENCIA': orcamento.potencia_inversor,  # Alias
+            'POTENCIA_INVERSOR_KW': f'{orcamento.potencia_inversor / 1000:.1f}',
+            'QUANTIDADE_INVERSORES': orcamento.quantidade_inversores,
+            'INVERSOR_QTD': orcamento.quantidade_inversores,  # Alias,
+            
+            # Estrutura
+            'TIPO_ESTRUTURA': orcamento.get_tipo_estrutura_display(),
+            
+            # Valores
+            'VALOR_KIT': f'R$ {orcamento.valor_kit:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'VALOR_ESTRUTURA': f'R$ {orcamento.valor_estrutura:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'VALOR_MATERIAL_ELETRICO': f'R$ {orcamento.valor_material_eletrico:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'VALOR_PROJETO': f'R$ {premissa.valor_projeto:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'VALOR_MONTAGEM': f'R$ {premissa.montagem_por_painel * orcamento.quantidade_paineis:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'VALOR_TOTAL': f'R$ {orcamento.valor_total:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            'VALOR_FINAL': f'R$ {orcamento.valor_final:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.'),
+            
+            # Pagamento
+            'FORMA_PAGAMENTO': forma_pagamento_texto,
+            'TAXA_JUROS': f'{orcamento.taxa_juros:.2f}%' if orcamento.taxa_juros > 0 else '0%',
+            
+            # Vendedor
+            'NOME_VENDEDOR': orcamento.vendedor.nome if orcamento.vendedor else '',
+            'TELEFONE_VENDEDOR': orcamento.vendedor.telefone if orcamento.vendedor else '',
+            'EMAIL_VENDEDOR': orcamento.vendedor.email if orcamento.vendedor else '',
+            
+            # Premissas
+            'HSP': f'{hsp:.2f}',
+            'PERDA_SISTEMA': f'{perda:.1f}%',
+        }
+        
+        return dados

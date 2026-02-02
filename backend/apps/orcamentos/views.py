@@ -178,42 +178,78 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
         
         return Response(OrcamentoSerializer(orcamento).data, status=status.HTTP_201_CREATED)
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], url_path='gerar-pdf-dimensionamento')
     def gerar_pdf_dimensionamento(self, request, pk=None):
         from django.http import HttpResponse
         from .services.template_processor import TemplateProcessorService
+        from apps.templates.models import Template
+        import tempfile
         import os
+        import subprocess
         
         orcamento = self.get_object()
         premissa = Premissa.get_ativa()
         cliente = orcamento.cliente
         
-        # Buscar template ativo do tipo 'orcamento'
-        from apps.templates.models import Template
         try:
             template = Template.objects.filter(tipo='orcamento', ativo=True).first()
             
             if not template:
-                return Response({'error': 'Nenhum template de orçamento encontrado'}, status=404)
+                return Response({'error': 'Nenhum template de orçamento ativo encontrado'}, status=404)
             
-            # Processar template
-            buffer = TemplateProcessorService.processar_template(
+            # Processar template DOCX
+            buffer_docx = TemplateProcessorService.processar_template(
                 template.arquivo.path,
                 orcamento,
                 premissa,
                 cliente
             )
             
-            # Retornar DOCX processado
-            response = HttpResponse(
-                buffer.read(),
-                content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            )
-            response['Content-Disposition'] = f'attachment; filename="Orcamento_{orcamento.numero}.docx"'
-            return response
+            # Criar arquivo temporário DOCX
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_docx:
+                tmp_docx.write(buffer_docx.getvalue())
+                tmp_docx_path = tmp_docx.name
+            
+            # Converter para PDF usando LibreOffice
+            tmp_dir = os.path.dirname(tmp_docx_path)
+            try:
+                subprocess.run([
+                    'libreoffice',
+                    '--headless',
+                    '--convert-to', 'pdf',
+                    '--outdir', tmp_dir,
+                    tmp_docx_path
+                ], check=True, capture_output=True, timeout=30)
+                
+                # Caminho do PDF gerado
+                pdf_path = tmp_docx_path.replace('.docx', '.pdf')
+                
+                # Ler PDF
+                with open(pdf_path, 'rb') as pdf_file:
+                    pdf_content = pdf_file.read()
+                
+                # Limpar arquivos temporários
+                os.unlink(tmp_docx_path)
+                os.unlink(pdf_path)
+                
+                # Retornar PDF
+                response = HttpResponse(pdf_content, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="Orcamento_{orcamento.numero}.pdf"'
+                return response
+                
+            except Exception as e:
+                # Se falhar, retornar DOCX
+                os.unlink(tmp_docx_path)
+                response = HttpResponse(
+                    buffer_docx.getvalue(),
+                    content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                )
+                response['Content-Disposition'] = f'attachment; filename="Orcamento_{orcamento.numero}.docx"'
+                return response
             
         except Exception as e:
-            return Response({'error': str(e)}, status=500)
+            import traceback
+            return Response({'error': str(e), 'traceback': traceback.format_exc()}, status=500)
     
     @action(detail=True, methods=['get'])
     def detalhamento(self, request, pk=None):
