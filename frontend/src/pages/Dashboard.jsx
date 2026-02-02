@@ -32,7 +32,7 @@ const Dashboard = () => {
   const cards = [
     { title: 'Total de Clientes', value: stats.total_clientes, icon: Users, color: 'bg-blue-500' },
     { title: 'Novos Leads (30d)', value: stats.novos_leads, icon: TrendingUp, color: 'bg-green-500' },
-    { title: 'Propostas Ativas', value: stats.propostas_ativas, icon: FileText, color: 'bg-yellow-500' },
+    { title: 'Orçamentos Ativos', value: stats.propostas_ativas, icon: FileText, color: 'bg-yellow-500' },
   ];
 
   if (loading) {

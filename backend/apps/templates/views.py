@@ -17,7 +17,11 @@ class TemplateViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         arquivo = self.request.FILES.get('arquivo')
-        serializer.save(arquivo_nome=arquivo.name if arquivo else '')
+        # Ensure ativo is True by default if not provided
+        ativo = self.request.data.get('ativo', True)
+        if isinstance(ativo, str):
+            ativo = ativo.lower() in ['true', '1', 'yes']
+        serializer.save(arquivo_nome=arquivo.name if arquivo else '', ativo=ativo)
     
     def retrieve(self, request, pk=None):
         template = self.get_object()

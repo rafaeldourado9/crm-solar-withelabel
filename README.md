@@ -65,6 +65,7 @@ crm_solar/
 ### Pré-requisitos
 - Docker & Docker Compose
 - Git
+- Google Maps API Key (opcional, para cálculo de deslocamento)
 
 ### Passo a Passo
 
@@ -74,18 +75,24 @@ git clone <repo-url>
 cd crm_solar
 ```
 
-2. Suba os containers:
+2. Configure as variáveis de ambiente:
+```bash
+cp backend/.env.example backend/.env
+# Edite backend/.env e adicione sua GOOGLE_MAPS_API_KEY
+```
+
+3. Suba os containers:
 ```bash
 docker-compose up -d
 ```
 
-3. Execute as migrações:
+4. Execute as migrações:
 ```bash
 docker-compose exec backend python manage.py migrate
 docker-compose exec backend python manage.py createsuperuser
 ```
 
-4. Acesse:
+5. Acesse:
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
 - Admin: http://localhost:8000/admin
@@ -115,6 +122,7 @@ Consulte a pasta `/docs` para documentação detalhada:
 - [API](./docs/API.md) - Endpoints e exemplos
 - [Arquitetura](./docs/ARCHITECTURE.md) - Decisões técnicas
 - [Deploy](./docs/DEPLOY.md) - Guia de produção
+- [Deslocamento](./docs/DESLOCAMENTO.md) - Cálculo de deslocamento e Google Maps
 
 ## 🤝 Contribuindo
 

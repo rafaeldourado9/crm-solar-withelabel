@@ -5,6 +5,7 @@ from django.conf import settings
 class TemplateSerializer(serializers.ModelSerializer):
     arquivo_url = serializers.SerializerMethodField()
     arquivo_nome = serializers.CharField(required=False, allow_blank=True)
+    ativo = serializers.BooleanField(default=True)
     
     class Meta:
         model = Template

@@ -194,7 +194,6 @@ const OrcamentoDetalhe = () => {
                   responseType: 'blob'
                 });
                 
-                // Detectar tipo de arquivo pela resposta
                 const contentType = response.headers['content-type'];
                 const isPdf = contentType.includes('application/pdf');
                 const extension = isPdf ? 'pdf' : 'docx';

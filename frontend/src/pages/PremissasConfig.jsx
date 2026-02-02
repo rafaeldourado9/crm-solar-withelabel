@@ -7,8 +7,8 @@ const PremissasConfig = () => {
   const { toasts, showToast, removeToast } = useToast();
   const [premissa, setPremissa] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [taxas, setTaxas] = useState({ '12': '', '18': '', '24': '' });
-  const [materialEletrico, setMaterialEletrico] = useState({});
+  const [taxas, setTaxas] = useState({ '12': 0, '18': 0, '24': 0 });
+  const [materialEletrico, setMaterialEletrico] = useState({ '3': 0, '5': 0, '6': 0, '8': 0, '10': 0 });
 
   useEffect(() => {
     carregarPremissa();
@@ -360,8 +360,8 @@ const PremissasConfig = () => {
                 type="number"
                 step="0.01"
                 className="input input-bordered w-full"
-                value={materialEletrico['3'] || ''}
-                onChange={(e) => setMaterialEletrico({...materialEletrico, '3': Number(e.target.value)})}
+                value={materialEletrico['3'] || 0}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '3': Number(e.target.value) || 0})}
                 placeholder="250"
               />
             </div>
@@ -371,8 +371,8 @@ const PremissasConfig = () => {
                 type="number"
                 step="0.01"
                 className="input input-bordered w-full"
-                value={materialEletrico['5'] || ''}
-                onChange={(e) => setMaterialEletrico({...materialEletrico, '5': Number(e.target.value)})}
+                value={materialEletrico['5'] || 0}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '5': Number(e.target.value) || 0})}
                 placeholder="350"
               />
             </div>
@@ -382,8 +382,8 @@ const PremissasConfig = () => {
                 type="number"
                 step="0.01"
                 className="input input-bordered w-full"
-                value={materialEletrico['6'] || ''}
-                onChange={(e) => setMaterialEletrico({...materialEletrico, '6': Number(e.target.value)})}
+                value={materialEletrico['6'] || 0}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '6': Number(e.target.value) || 0})}
                 placeholder="400"
               />
             </div>
@@ -393,8 +393,8 @@ const PremissasConfig = () => {
                 type="number"
                 step="0.01"
                 className="input input-bordered w-full"
-                value={materialEletrico['8'] || ''}
-                onChange={(e) => setMaterialEletrico({...materialEletrico, '8': Number(e.target.value)})}
+                value={materialEletrico['8'] || 0}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '8': Number(e.target.value) || 0})}
                 placeholder="500"
               />
             </div>
@@ -404,8 +404,8 @@ const PremissasConfig = () => {
                 type="number"
                 step="0.01"
                 className="input input-bordered w-full"
-                value={materialEletrico['10'] || ''}
-                onChange={(e) => setMaterialEletrico({...materialEletrico, '10': Number(e.target.value)})}
+                value={materialEletrico['10'] || 0}
+                onChange={(e) => setMaterialEletrico({...materialEletrico, '10': Number(e.target.value) || 0})}
                 placeholder="900"
               />
             </div>
