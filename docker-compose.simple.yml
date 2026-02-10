@@ -8,12 +8,12 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-crm_solar}
       POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres123}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     image: redis:7-alpine
     container_name: crm_solar_redis
     restart: always
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
@@ -36,7 +36,9 @@ services:
       - crm_network
 
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-sunops/crm-solar}:${IMAGE_TAG:-prod-latest}-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: crm_solar_backend
     restart: always
     depends_on:
@@ -45,21 +47,17 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SECRET_KEY: ${SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
       DEBUG: ${DEBUG:-False}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       DB_NAME: ${DB_NAME:-crm_solar}
       DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres123}
       DB_HOST: db
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      CORS_ORIGINS: ${CORS_ORIGINS}
-      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
     volumes:
       - media_files:/app/media
       - static_files:/app/staticfiles
@@ -75,19 +73,18 @@ services:
       - crm_network
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-sunops/crm-solar}:${IMAGE_TAG:-prod-latest}-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     container_name: crm_solar_frontend
     restart: always
     depends_on:
       backend:
         condition: service_healthy
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/ssl:/etc/nginx/ssl:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
       interval: 30s

@@ -60,6 +60,23 @@ htmlcov/
 .env
 .env.local
 .env.*.local
+.env.deploy
+
+# SSH Keys
+*.pem
+*.key
+id_rsa*
+
+# Backups
+.backup/
+*.sql
+*.dump
+
+# Terraform (removido)
+terraform/
+*.tfstate
+*.tfstate.*
+.terraform/
 
 # Docker
 *.pid
