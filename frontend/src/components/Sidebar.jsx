@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Users, DollarSign, FileText, FileCheck, FileSignature, Settings, Package, Zap, LogOut, File } from 'lucide-react';
+import { Home, Users, DollarSign, FileText, FileCheck, FileSignature, Settings, Package, Bot, LogOut, File } from 'lucide-react';
 import { useUserRole } from '../hooks/useUserRole';
 import { useState } from 'react';
 
@@ -18,7 +18,7 @@ const Sidebar = () => {
     { path: '/equipamentos', icon: Package, label: 'Equipamentos', allowVendedor: false },
     { path: '/templates', icon: File, label: 'Templates', allowVendedor: false },
     { path: '/premissas', icon: Settings, label: 'Premissas', allowVendedor: false },
-    { path: '/ia', icon: Zap, label: 'IA Features', allowVendedor: true },
+    { path: '/suporte', icon: Bot, label: 'Suporte IA', allowVendedor: true },
   ];
   
   const handleLogout = () => {

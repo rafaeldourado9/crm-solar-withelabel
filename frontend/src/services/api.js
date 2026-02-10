@@ -46,8 +46,8 @@ export const propostasAPI = {
 };
 
 export const contratosAPI = {
-  listar: () => api.get('/contratos/'),
-  gerarPDF: (id) => api.post(`/contratos/${id}/gerar_pdf/`),
+  listar: (params) => api.get('/contratos/', { params }),
+  gerarPDF: (id) => api.post(`/contratos/${id}/gerar_pdf/`, {}, { responseType: 'blob' }),
 };
 
 export const vendedoresAPI = {

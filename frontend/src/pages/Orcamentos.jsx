@@ -11,6 +11,9 @@ const Orcamentos = () => {
   const [orcamentos, setOrcamentos] = useState([]);
   const [orcamentosFiltrados, setOrcamentosFiltrados] = useState([]);
   const [busca, setBusca] = useState('');
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalOrcamentos, setTotalOrcamentos] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [paineis, setPaineis] = useState([]);
@@ -43,22 +46,30 @@ const Orcamentos = () => {
   const [showInversorDropdown, setShowInversorDropdown] = useState(false);
 
   useEffect(() => {
-    carregarDados();
-  }, []);
+    carregarDados(1);
+  }, [busca]);
 
-  const carregarDados = async () => {
+  const carregarDados = async (pagina = 1) => {
     try {
       const timestamp = new Date().getTime();
+      const params = { page: pagina, page_size: 50, _t: timestamp };
+      if (busca) params.search = busca;
+      
       const [orcRes, cliRes, painelRes, invRes, premRes] = await Promise.all([
-        api.get(`/orcamentos/?_t=${timestamp}`),
-        api.get('/clientes/'),
+        api.get('/orcamentos/', { params }),
+        api.get('/clientes/?page=1&page_size=1000'),
         api.get('/equipamentos/paineis/?limit=1000'),
         api.get('/equipamentos/inversores/?limit=1000'),
         api.get('/premissas/ativa/')
       ]);
       
-      setOrcamentos(orcRes.data.results || orcRes.data);
-      setOrcamentosFiltrados(orcRes.data.results || orcRes.data);
+      const orcData = orcRes.data;
+      setOrcamentos(orcData.results || orcData);
+      setOrcamentosFiltrados(orcData.results || orcData);
+      setTotalOrcamentos(orcData.count || 0);
+      setTotalPaginas(Math.ceil((orcData.count || 0) / 50));
+      setPaginaAtual(pagina);
+      
       setClientes(cliRes.data.results || cliRes.data);
       setPaineis(painelRes.data.results || painelRes.data);
       setInversores(invRes.data.results || invRes.data);
@@ -140,7 +151,7 @@ const Orcamentos = () => {
       showToast('Orçamento criado com sucesso!', 'success');
       resetForm();
       setShowModal(false);
-      await carregarDados();
+      await carregarDados(paginaAtual);
     } catch (error) {
       console.error('Erro:', error);
       showToast('Erro ao criar orçamento', 'error');
@@ -209,7 +220,7 @@ const Orcamentos = () => {
     try {
       await api.delete(`/orcamentos/${id}/`);
       showToast('Orçamento excluído com sucesso', 'success');
-      carregarDados();
+      carregarDados(paginaAtual);
     } catch (error) {
       showToast('Erro ao excluir orçamento', 'error');
     }
@@ -229,7 +240,7 @@ const Orcamentos = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Orçamentos</h2>
-          <p className="text-gray-600">{orcamentosFiltrados.length} orçamentos</p>
+          <p className="text-gray-600">{totalOrcamentos} orçamentos (página {paginaAtual} de {totalPaginas})</p>
         </div>
         
         <button onClick={() => setShowModal(true)} className="btn-accent flex items-center gap-2">
@@ -305,6 +316,55 @@ const Orcamentos = () => {
           </div>
         ))}
       </div>
+
+      {totalPaginas > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-4">
+          <button
+            onClick={() => carregarDados(paginaAtual - 1)}
+            disabled={paginaAtual === 1}
+            className="btn-outline px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ← Anterior
+          </button>
+          
+          <div className="flex gap-1">
+            {[...Array(Math.min(5, totalPaginas))].map((_, i) => {
+              let pageNum;
+              if (totalPaginas <= 5) {
+                pageNum = i + 1;
+              } else if (paginaAtual <= 3) {
+                pageNum = i + 1;
+              } else if (paginaAtual >= totalPaginas - 2) {
+                pageNum = totalPaginas - 4 + i;
+              } else {
+                pageNum = paginaAtual - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => carregarDados(pageNum)}
+                  className={`px-3 py-2 rounded ${
+                    paginaAtual === pageNum
+                      ? 'bg-accent text-white'
+                      : 'btn-outline'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+          
+          <button
+            onClick={() => carregarDados(paginaAtual + 1)}
+            disabled={paginaAtual === totalPaginas}
+            className="btn-outline px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Próxima →
+          </button>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">

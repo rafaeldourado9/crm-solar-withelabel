@@ -240,7 +240,6 @@ const Templates = () => {
                 >
                   <option value="orcamento">Orçamento</option>
                   <option value="contrato">Contrato</option>
-                  <option value="proposta">Proposta</option>
                 </select>
               </div>
 

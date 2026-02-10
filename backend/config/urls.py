@@ -19,7 +19,7 @@ urlpatterns = [
     path('api/contratos/', include('apps.contratos.urls')),
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/templates/', include('apps.templates.urls')),
-    # path('api/ia/', include('apps.ia_urls')),
+    path('api/suporte/', include('apps.suporte.urls')),
 ]
 
 if settings.DEBUG:

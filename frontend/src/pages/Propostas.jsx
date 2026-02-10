@@ -35,6 +35,18 @@ const Propostas = () => {
     }
   };
 
+  const converterContrato = async (id) => {
+    try {
+      showToast('Gerando contrato...', 'info');
+      await propostasAPI.converterContrato(id, {});
+      showToast('Contrato gerado com sucesso!', 'success');
+      carregarPropostas();
+    } catch (error) {
+      console.error('Erro:', error);
+      showToast('Erro ao gerar contrato', 'error');
+    }
+  };
+
   const getStatusIcon = (status) => {
     switch(status) {
       case 'aceita': return <CheckCircle className="text-green-500" size={20} />;
@@ -110,7 +122,10 @@ const Propostas = () => {
                     </button>
                   )}
                   {prop.status === 'aceita' && !prop.convertido_contrato && (
-                    <button className="btn-primary text-sm py-1 px-4">
+                    <button 
+                      onClick={() => converterContrato(prop.id)}
+                      className="btn-primary text-sm py-1 px-4"
+                    >
                       Gerar Contrato
                     </button>
                   )}

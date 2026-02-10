@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'apps.propostas',
     'apps.contratos',
     'apps.templates',
+    'apps.suporte',
 ]
 
 MIDDLEWARE = [

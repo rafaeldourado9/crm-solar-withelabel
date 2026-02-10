@@ -5,18 +5,19 @@ from django.conf import settings
 
 class DeslocamentoService:
     
-    # Tabela de distâncias de Dourados para cidades principais (km) - FALLBACK
+    # Tabela de distâncias de Itaporã/Dourados para cidades principais (km) - FALLBACK
     DISTANCIAS_CONHECIDAS = {
-        'campo grande': 120,
-        'dourados': 0,
-        'ponta porã': 30,
-        'itaporã': 20,
-        'caarapó': 40,
-        'maracaju': 60,
-        'naviraí': 70,
-        'fátima do sul': 50,
-        'rio brilhante': 70,
-        'nova andradina': 100,
+        'campo grande': 230,
+        'dourados': 20,
+        'ponta porã': 50,
+        'itaporã': 0,
+        'caarapó': 60,
+        'maracaju': 80,
+        'naviraí': 90,
+        'fátima do sul': 70,
+        'rio brilhante': 90,
+        'nova andradina': 120,
+        'bonito': 280,
     }
     
     @staticmethod
@@ -110,23 +111,26 @@ class DeslocamentoService:
         # Calcular consumo: litros = distância / km_por_litro
         litros_necessarios = distancia_total_km / premissas.consumo_veiculo_km_por_litro
         
-        # Custo do combustível
+        # Custo do combustível (ida e volta) - valor repassado ao montador
         custo_combustivel = litros_necessarios * premissas.preco_combustivel_litro
         
-        # Valor cobrado = custo × (1 + margem/100)
+        # Valor cobrado do cliente = custo × 1,20 (20% a mais)
         margem_percentual = premissas.margem_deslocamento_percentual or Decimal('20')
         valor_cobrado = custo_combustivel * (1 + margem_percentual / 100)
         
-        # Margem de lucro = valor cobrado - custo
-        margem_lucro = valor_cobrado - custo_combustivel
+        # Montador recebe: apenas custo do combustível
+        # Margem (20%): vira margem de desconto disponível para negociação
+        valor_montador = custo_combustivel
+        margem_desconto_disponivel = valor_cobrado - custo_combustivel
         
         return {
             'distancia_km': float(distancia_km),
             'distancia_total_km': float(distancia_total_km),
             'litros_necessarios': float(litros_necessarios),
             'custo_combustivel': float(custo_combustivel),
+            'valor_montador': float(valor_montador),
             'valor_cobrado': float(valor_cobrado),
-            'margem_lucro': float(margem_lucro),
+            'margem_desconto_disponivel': float(margem_desconto_disponivel),
             'valor_total': float(valor_cobrado),
             'cobrar': True,
             'cidade_origem': premissas.cidade_empresa,

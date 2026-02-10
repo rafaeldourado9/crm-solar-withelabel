@@ -108,6 +108,12 @@ const OrcamentoDetalhe = () => {
   };
 
   const calcularValorFinal = () => {
+    // Usar valor salvo no banco se não estiver editando
+    if (!editando && orcamento?.valor_final) {
+      return parseFloat(orcamento.valor_final);
+    }
+    
+    // Recalcular apenas se estiver editando
     const valorBase = calcularValorBase();
     const margemDesconto = premissas?.margem_desconto_avista_percentual || 2;
     const valorComMargem = valorBase * (1 + margemDesconto / 100);
@@ -187,6 +193,29 @@ const OrcamentoDetalhe = () => {
         </div>
         
         <div className="flex gap-2">
+          <button 
+            onClick={async () => {
+              try {
+                showToast('Criando proposta e contrato...', 'info');
+                const response = await api.post(`/orcamentos/${id}/converter_proposta/`);
+                showToast(response.data.mensagem, 'success');
+                setTimeout(() => navigate('/contratos'), 1500);
+              } catch (error) {
+                if (error.response?.data?.campos_faltantes) {
+                  showToast(
+                    `Dados incompletos do cliente: ${error.response.data.campos_faltantes.join(', ')}`,
+                    'error'
+                  );
+                } else {
+                  showToast(error.response?.data?.error || 'Erro ao criar proposta', 'error');
+                }
+              }
+            }}
+            className="btn-accent flex items-center gap-2"
+          >
+            <FileText size={20} />
+            Subir Proposta
+          </button>
           <button 
             onClick={async () => {
               try {

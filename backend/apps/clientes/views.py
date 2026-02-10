@@ -1,17 +1,26 @@
 from rest_framework import viewsets, filters, status, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Cliente
 from .serializers import ClienteSerializer
+
+class ClientePagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class ClienteViewSet(viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['status', 'cidade', 'vendedor']
-    search_fields = ['nome', 'cpf_cnpj', 'telefone']
+    pagination_class = ClientePagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'cidade', 'vendedor', 'estado']
+    search_fields = ['nome', 'cpf_cnpj', 'telefone', 'email', 'cidade']
+    ordering_fields = ['created_at', 'nome', 'cidade']
+    ordering = ['-created_at']
     
     def get_queryset(self):
         user = self.request.user

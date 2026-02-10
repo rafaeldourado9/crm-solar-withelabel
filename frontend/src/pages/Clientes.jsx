@@ -11,6 +11,9 @@ const Clientes = () => {
   const [vendedores, setVendedores] = useState([]);
   const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalClientes, setTotalClientes] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, clienteId: null });
   const [formData, setFormData] = useState({
@@ -90,15 +93,23 @@ const Clientes = () => {
   };
 
   useEffect(() => {
-    carregarClientes();
+    carregarClientes(1);
     carregarVendedores();
-  }, [filtro]);
+  }, [filtro, busca]);
 
-  const carregarClientes = async () => {
+  const carregarClientes = async (pagina = 1) => {
     try {
-      const params = filtro !== 'todos' ? { status: filtro } : {};
+      const params = { page: pagina, page_size: 50 };
+      if (filtro !== 'todos') params.status = filtro;
+      if (busca) params.search = busca;
+      
       const response = await clientesService.getAll(params);
-      setClientes(Array.isArray(response.data) ? response.data : response.data.results || []);
+      const data = response.data;
+      
+      setClientes(data.results || []);
+      setTotalClientes(data.count || 0);
+      setTotalPaginas(Math.ceil((data.count || 0) / 50));
+      setPaginaAtual(pagina);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
     }
@@ -132,7 +143,7 @@ const Clientes = () => {
       setShowModal(false);
       setEditingId(null);
       setFormData({ nome: '', cpf_cnpj: '', telefone: '', email: '', cep: '', endereco: '', bairro: '', cidade: '', estado: '', vendedor: '', status: 'orcamento' });
-      carregarClientes();
+      carregarClientes(paginaAtual);
     } catch (error) {
       console.error('Erro ao salvar cliente:', error);
       showToast('Erro ao salvar cliente', 'error');
@@ -154,25 +165,14 @@ const Clientes = () => {
     try {
       await clientesService.delete(id);
       showToast('Cliente excluído com sucesso', 'success');
-      carregarClientes();
+      carregarClientes(paginaAtual);
     } catch (error) {
       console.error('Erro ao excluir cliente:', error);
       showToast('Erro ao excluir cliente', 'error');
     }
   };
 
-  const clientesFiltrados = Array.isArray(clientes) ? clientes.filter(c => {
-    if (!busca.trim()) return true;
-    const termo = busca.toLowerCase();
-    return (
-      (c.nome || '').toLowerCase().includes(termo) ||
-      (c.cidade || '').toLowerCase().includes(termo) ||
-      (c.vendedor_nome || '').toLowerCase().includes(termo) ||
-      (c.telefone || '').toLowerCase().includes(termo) ||
-      (c.email || '').toLowerCase().includes(termo) ||
-      (c.status || '').toLowerCase().includes(termo)
-    );
-  }) : [];
+  const clientesFiltrados = clientes;
 
   return (
     <div className="space-y-6">
@@ -191,7 +191,7 @@ const Clientes = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Clientes</h2>
-          <p className="text-gray-600">{clientesFiltrados.length} clientes</p>
+          <p className="text-gray-600">{totalClientes} clientes (página {paginaAtual} de {totalPaginas})</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-accent flex items-center gap-2">
           <Plus size={20} />
@@ -273,6 +273,56 @@ const Clientes = () => {
             </div>
           )}
         </div>
+        
+        {/* Paginação */}
+        {totalPaginas > 1 && (
+          <div className="flex justify-center items-center gap-2 mt-4">
+            <button
+              onClick={() => carregarClientes(paginaAtual - 1)}
+              disabled={paginaAtual === 1}
+              className="btn-outline px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Anterior
+            </button>
+            
+            <div className="flex gap-1">
+              {[...Array(Math.min(5, totalPaginas))].map((_, i) => {
+                let pageNum;
+                if (totalPaginas <= 5) {
+                  pageNum = i + 1;
+                } else if (paginaAtual <= 3) {
+                  pageNum = i + 1;
+                } else if (paginaAtual >= totalPaginas - 2) {
+                  pageNum = totalPaginas - 4 + i;
+                } else {
+                  pageNum = paginaAtual - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={i}
+                    onClick={() => carregarClientes(pageNum)}
+                    className={`px-3 py-2 rounded ${
+                      paginaAtual === pageNum
+                        ? 'bg-accent text-white'
+                        : 'btn-outline'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => carregarClientes(paginaAtual + 1)}
+              disabled={paginaAtual === totalPaginas}
+              className="btn-outline px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Próxima →
+            </button>
+          </div>
+        )}
       </div>
 
       {showModal && (

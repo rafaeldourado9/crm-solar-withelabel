@@ -112,10 +112,8 @@ const PremissasConfig = () => {
                 step="0.01"
                 required
                 className="input input-bordered w-full"
-                // Exibe em porcentagem (0.20 -> 20)
-                value={premissa.perda_padrao ? (premissa.perda_padrao * 100).toFixed(2) : ''}
-                // Salva em decimal (20 -> 0.20)
-                onChange={(e) => setPremissa({...premissa, perda_padrao: e.target.value / 100})}
+                value={premissa.perda_padrao}
+                onChange={(e) => setPremissa({...premissa, perda_padrao: e.target.value})}
               />
               <span className="text-xs text-gray-500">Ex: 20 para 20%</span>
             </div>
@@ -335,7 +333,7 @@ const PremissasConfig = () => {
                 value={premissa.margem_deslocamento_percentual || 20}
                 onChange={(e) => setPremissa({...premissa, margem_deslocamento_percentual: e.target.value})}
               />
-              <span className="text-xs text-gray-500">Margem sobre o custo real</span>
+              <span className="text-xs text-gray-500">Vira margem de desconto para negociação</span>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-2">Cidades Sem Cobrança (separadas por vírgula)</label>

@@ -33,22 +33,25 @@ class TemplateProcessorService:
     
     @staticmethod
     def _substituir_texto(paragrafo, dados):
-        """Substitui {{CHAVE}} pelos valores"""
-        texto_completo = paragrafo.text
+        """Substitui {{CHAVE}} pelos valores mantendo formatação"""
+        texto_original = paragrafo.text
         
-        for chave, valor in dados.items():
-            placeholder = f'{{{{{chave}}}}}'
-            if placeholder in texto_completo:
-                texto_completo = texto_completo.replace(placeholder, str(valor))
+        # Verificar se há placeholders
+        tem_placeholder = False
+        for chave in dados.keys():
+            if f'{{{{{chave}}}}}' in texto_original:
+                tem_placeholder = True
+                break
         
-        # Atualizar runs mantendo formatação
-        if texto_completo != paragrafo.text:
-            for run in paragrafo.runs:
-                run.text = ''
-            if paragrafo.runs:
-                paragrafo.runs[0].text = texto_completo
-            else:
-                paragrafo.add_run(texto_completo)
+        if not tem_placeholder:
+            return
+        
+        # Substituir mantendo formatação de cada run
+        for run in paragrafo.runs:
+            for chave, valor in dados.items():
+                placeholder = f'{{{{{chave}}}}}'
+                if placeholder in run.text:
+                    run.text = run.text.replace(placeholder, str(valor))
     
     @staticmethod
     def _preparar_dados(orcamento, premissa, cliente):

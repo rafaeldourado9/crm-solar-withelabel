@@ -1,0 +1,53 @@
+name: Rollback PROD
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA para rollback (deixe vazio para versão anterior)'
+        required: false
+        default: ''
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Emergency Backup
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/sunops
+            ./scripts/backup.sh emergency
+
+      - name: Rollback to Previous Version
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/sunops
+            
+            if [ -z "${{ github.event.inputs.commit_sha }}" ]; then
+              echo "Rollback para versão anterior..."
+              ./scripts/rollback.sh
+            else
+              echo "Rollback para commit ${{ github.event.inputs.commit_sha }}..."
+              ./scripts/rollback.sh ${{ github.event.inputs.commit_sha }}
+            fi
+
+      - name: Health Check
+        run: |
+          sleep 20
+          curl -f https://sunops.com.br/health/ || exit 1
+
+      - name: Notify Rollback
+        run: |
+          echo "⚠️ ROLLBACK executado!"
+          echo "Commit: ${{ github.event.inputs.commit_sha || 'versão anterior' }}"

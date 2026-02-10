@@ -1,7 +1,9 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Orcamento
 from .serializers import OrcamentoSerializer, OrcamentoCreateSerializer
 from apps.premissas.models import Premissa
@@ -9,6 +11,11 @@ from apps.equipamentos.models import Inversor
 from apps.clientes.models import Cliente
 from decimal import Decimal, ROUND_UP, ROUND_HALF_UP
 from .services.deslocamento_service import DeslocamentoService
+
+class OrcamentoPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 class ValidarDimensionamentoView(APIView):
     def post(self, request):
@@ -80,6 +87,20 @@ class CalcularMaterialEletricoView(APIView):
 class OrcamentoViewSet(viewsets.ModelViewSet):
     queryset = Orcamento.objects.all()
     serializer_class = OrcamentoSerializer
+    pagination_class = OrcamentoPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['vendedor', 'cliente', 'forma_pagamento']
+    search_fields = ['numero', 'nome_kit', 'cliente__nome', 'cliente__cidade', 'vendedor__nome']
+    ordering_fields = ['data_criacao', 'valor_final', 'numero']
+    ordering = ['-data_criacao']
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return Orcamento.objects.all()
+        if hasattr(user, 'vendedor'):
+            return Orcamento.objects.filter(vendedor=user.vendedor)
+        return Orcamento.objects.filter(cliente__criado_por=user)
     
     def create(self, request):
         serializer = OrcamentoCreateSerializer(data=request.data)
@@ -90,6 +111,9 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
         
         # Buscar cliente para calcular deslocamento
         cliente = Cliente.objects.get(id=data['cliente_id'])
+        
+        # Atribuir vendedor do cliente ao orçamento
+        vendedor_id = data.get('vendedor_id') or (cliente.vendedor.id if cliente.vendedor else None)
         
         # Calcular deslocamento
         deslocamento = DeslocamentoService.calcular_custo_deslocamento(
@@ -157,7 +181,7 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
             numero=numero,
             nome_kit=data['nome_kit'],
             cliente_id=data['cliente_id'],
-            vendedor_id=data.get('vendedor_id'),
+            vendedor_id=vendedor_id,
             valor_kit=valor_kit,
             marca_painel=data['marca_painel'],
             potencia_painel=data['potencia_painel'],
@@ -251,7 +275,101 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
             import traceback
             return Response({'error': str(e), 'traceback': traceback.format_exc()}, status=500)
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['post'])
+    def converter_proposta(self, request, pk=None):
+        from apps.propostas.models import Proposta
+        from apps.contratos.models import Contrato
+        from apps.contratos.utils import numero_por_extenso
+        from datetime import date
+        
+        orcamento = self.get_object()
+        cliente = orcamento.cliente
+        
+        # Validar dados completos do cliente
+        campos_obrigatorios = {
+            'nome': cliente.nome,
+            'cpf_cnpj': cliente.cpf_cnpj,
+            'telefone': cliente.telefone,
+            'email': cliente.email,
+            'endereco': cliente.endereco,
+            'bairro': cliente.bairro,
+            'cidade': cliente.cidade,
+            'estado': cliente.estado,
+            'cep': cliente.cep
+        }
+        
+        campos_faltantes = [campo for campo, valor in campos_obrigatorios.items() if not valor]
+        
+        if campos_faltantes:
+            return Response({
+                'error': 'Dados incompletos do cliente',
+                'campos_faltantes': campos_faltantes,
+                'mensagem': f'Complete os seguintes dados do cliente: {", ".join(campos_faltantes)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verificar se já existe proposta
+        if hasattr(orcamento, 'proposta'):
+            return Response({
+                'error': 'Orçamento já possui proposta',
+                'proposta_id': orcamento.proposta.id
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Criar proposta
+            ultimo_prop = Proposta.objects.order_by('-id').first()
+            numero_prop = f"PROP-{date.today().year}-{(ultimo_prop.id + 1) if ultimo_prop else 1:04d}"
+            
+            proposta = Proposta.objects.create(
+                numero=numero_prop,
+                orcamento=orcamento,
+                cpf_cnpj=cliente.cpf_cnpj,
+                endereco_completo=cliente.endereco,
+                bairro=cliente.bairro,
+                cep=cliente.cep,
+                status='aceita',
+                data_aceite=date.today()
+            )
+            
+            # Criar contrato automaticamente
+            ultimo_cont = Contrato.objects.order_by('-id').first()
+            numero_cont = f"CONT-{date.today().year}-{(ultimo_cont.id + 1) if ultimo_cont else 1:04d}"
+            
+            # Determinar forma de pagamento e parcelas
+            forma_pagamento = 'vista'
+            num_parcelas = 1
+            valor_parcela = orcamento.valor_final
+            
+            if orcamento.forma_pagamento != 'avista':
+                num_parcelas = int(orcamento.forma_pagamento)
+                valor_parcela = orcamento.valor_parcela or (orcamento.valor_final / num_parcelas)
+                forma_pagamento = 'cartao' if num_parcelas <= 18 else 'financiamento'
+            
+            descricao_pagamento = f"Pagamento em {num_parcelas}x de R$ {valor_parcela:.2f}" if num_parcelas > 1 else f"Pagamento à vista de R$ {orcamento.valor_final:.2f}"
+            
+            contrato = Contrato.objects.create(
+                numero=numero_cont,
+                proposta=proposta,
+                valor_total=orcamento.valor_final,
+                valor_total_extenso=numero_por_extenso(float(orcamento.valor_final)),
+                forma_pagamento=forma_pagamento,
+                descricao_pagamento=descricao_pagamento,
+                numero_parcelas=num_parcelas,
+                valor_parcela=valor_parcela,
+                valor_parcela_extenso=numero_por_extenso(float(valor_parcela)),
+                data_assinatura=date.today()
+            )
+            
+            return Response({
+                'success': True,
+                'proposta_id': proposta.id,
+                'proposta_numero': proposta.numero,
+                'contrato_id': contrato.id,
+                'contrato_numero': contrato.numero,
+                'mensagem': 'Proposta e contrato criados com sucesso!'
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     def detalhamento(self, request, pk=None):
         orcamento = self.get_object()
         premissa = Premissa.get_ativa()
