@@ -1,49 +1,77 @@
 #!/bin/bash
 set -e
 
-# Update system
+# Logs
+exec > >(tee /var/log/user-data.log)
+exec 2>&1
+
+echo "🚀 Iniciando deploy CRM Solar..."
+
+# Atualizar sistema
 apt-get update
 apt-get upgrade -y
 
-# Install Docker
+# Instalar Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
-usermod -aG docker ubuntu
+systemctl enable docker
+systemctl start docker
 
-# Install Docker Compose
+# Instalar Docker Compose
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
-# Install AWS CLI
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-apt-get install -y unzip
-unzip awscliv2.zip
-./aws/install
-rm -rf aws awscliv2.zip
+# Clonar repositório
+cd /opt
+git clone -b dev https://github.com/YOUR_USERNAME/SunOps---SaaS.git crm-solar
+cd crm-solar
 
-# Install Certbot
-apt-get install -y certbot
+# Criar .env.dev
+cat > .env.dev << EOF
+SECRET_KEY=$(openssl rand -base64 32)
+DEBUG=False
+ALLOWED_HOSTS=*
 
-# Create directories
-mkdir -p /home/ubuntu/sunops/{backend,frontend,nginx,backups,scripts}
-chown -R ubuntu:ubuntu /home/ubuntu/sunops
+DB_NAME=crm_solar_${environment}
+DB_USER=postgres
+DB_PASSWORD=${db_password}
+DB_HOST=${db_host}
+DB_PORT=5432
 
-# Configure swap
-fallocate -l 2G /swapfile
-chmod 600 /swapfile
-mkswap /swapfile
-swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-# Optimize system
-echo 'vm.swappiness=10' >> /etc/sysctl.conf
-echo 'net.core.somaxconn=1024' >> /etc/sysctl.conf
-sysctl -p
+CORS_ORIGINS=http://$(curl -s ifconfig.me)
 
-# Configure firewall
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw --force enable
+SECURE_SSL_REDIRECT=False
+SESSION_COOKIE_SECURE=False
+CSRF_COOKIE_SECURE=False
+EOF
 
-echo "Setup completed for ${environment}"
+# Deploy
+docker-compose -f docker-compose.dev.yml up -d --build
+
+# Aguardar backend iniciar
+sleep 30
+
+# Executar migrações
+docker-compose -f docker-compose.dev.yml exec -T backend python manage.py migrate
+docker-compose -f docker-compose.dev.yml exec -T backend python verificar_equipamentos.py
+docker-compose -f docker-compose.dev.yml exec -T backend python manage.py collectstatic --noinput
+
+# Criar superuser
+docker-compose -f docker-compose.dev.yml exec -T backend python manage.py shell << 'PYEOF'
+from django.contrib.auth import get_user_model
+User = get_user_model()
+if not User.objects.filter(username='admin').exists():
+    User.objects.create_superuser('admin', 'admin@sunops.com', 'Admin@123456')
+PYEOF
+
+# Configurar monitoramento
+cp scripts/crm-solar-monitor.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable crm-solar-monitor
+systemctl start crm-solar-monitor
+
+echo "✅ Deploy concluído!"
+echo "🌐 Acesse: http://$(curl -s ifconfig.me)"

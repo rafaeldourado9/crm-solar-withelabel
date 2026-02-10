@@ -1,0 +1,11 @@
+Deploy Django+React+PostgreSQL na AWS com Terraform:
+
+- RDS PostgreSQL 15.4 (db.t3.micro, 20GB, backup 7d)
+- EC2 Spot t3.medium Ubuntu 22.04 (ami-0c7217cdde317cfec)
+- Security Groups: EC2 (22,80,443), RDS (5432 do EC2)
+- Elastic IP no EC2
+- User data: instalar Docker, clonar https://github.com/USER/SunOps---SaaS.git (branch dev), criar .env.dev com RDS endpoint, executar docker-compose -f docker-compose.dev.yml up -d, migrate, verificar_equipamentos.py, criar superuser admin/Admin@123456
+- Outputs: ec2_public_ip, rds_endpoint, app_url
+- Variables: aws_region, environment, db_password (sensitive), ssh_key_name
+
+Gere: main.tf, variables.tf, outputs.tf, user_data.sh, terraform.tfvars.example

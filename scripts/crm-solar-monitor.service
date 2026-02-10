@@ -1,0 +1,15 @@
+[Unit]
+Description=CRM Solar Health Monitor
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/crm-solar
+ExecStart=/bin/bash /opt/crm-solar/scripts/monitor.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

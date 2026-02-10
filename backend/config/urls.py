@@ -5,8 +5,10 @@ from django.conf.urls.static import static
 from rest_framework.authtoken.views import obtain_auth_token
 from django.views.decorators.csrf import csrf_exempt
 from apps.auth_views import me
+from apps.health import health_check
 
 urlpatterns = [
+    path('health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/auth/login/', csrf_exempt(obtain_auth_token), name='api-login'),
     path('api/auth/me/', me, name='api-me'),
@@ -19,7 +21,6 @@ urlpatterns = [
     path('api/contratos/', include('apps.contratos.urls')),
     path('api/dashboard/', include('apps.dashboard.urls')),
     path('api/templates/', include('apps.templates.urls')),
-    path('api/suporte/', include('apps.suporte.urls')),
 ]
 
 if settings.DEBUG:
