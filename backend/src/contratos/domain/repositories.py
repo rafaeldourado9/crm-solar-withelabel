@@ -1,0 +1,23 @@
+from typing import Protocol
+from uuid import UUID
+
+from src.contratos.domain.entities import Contrato
+
+
+class ContratoRepository(Protocol):
+    async def create(self, contrato: Contrato) -> Contrato: ...
+    async def get_by_id(self, id: UUID, tenant_id: UUID) -> Contrato | None: ...
+    async def get_by_proposta(self, proposta_id: UUID, tenant_id: UUID) -> Contrato | None: ...
+    async def list_by_tenant(
+        self,
+        tenant_id: UUID,
+        cliente_id: UUID | None = None,
+        status: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> list[Contrato]: ...
+    async def count_by_tenant(
+        self, tenant_id: UUID, cliente_id: UUID | None = None, status: str | None = None
+    ) -> int: ...
+    async def update(self, contrato: Contrato) -> Contrato: ...
+    async def next_numero(self, tenant_id: UUID) -> str: ...
