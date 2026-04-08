@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash, Lock, Unlock, TrendingUp, UserCheck, Key } from 'lucide-react';
+import { Users, Plus, Edit, Trash, Lock, Unlock, TrendingUp, UserCheck, Key, History, CheckCircle } from 'lucide-react';
 import { vendedoresAPI } from '../services/api';
 import { useToast, ToastContainer } from '../components/Toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -12,6 +12,8 @@ const Vendedores = () => {
   const [showModal, setShowModal] = useState(false);
   const [showResumo, setShowResumo] = useState(false);
   const [resumo, setResumo] = useState(null);
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [historico, setHistorico] = useState(null);
   const [editando, setEditando] = useState(null);
   const { toasts, showToast, removeToast } = useToast();
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: null });
@@ -101,6 +103,28 @@ const Vendedores = () => {
       setShowResumo(true);
     } catch {
       showToast('Erro ao carregar resumo', 'error');
+    }
+  };
+
+  const verHistorico = async (id) => {
+    try {
+      const res = await vendedoresAPI.historico(id);
+      setHistorico(res.data);
+      setShowHistorico(true);
+    } catch {
+      showToast('Erro ao carregar histórico', 'error');
+    }
+  };
+
+  const handleMarcarPago = async (vendaId) => {
+    try {
+      await vendedoresAPI.marcarComissaoPaga(vendaId);
+      showToast('Comissão marcada como paga!', 'success');
+      // Recarrega histórico
+      const res = await vendedoresAPI.historico(historico.vendedor_id);
+      setHistorico(res.data);
+    } catch {
+      showToast('Erro ao marcar comissão', 'error');
     }
   };
 
@@ -194,6 +218,9 @@ const Vendedores = () => {
                     <button onClick={() => verResumo(v.id)} className="text-purple-500 hover:text-purple-700" title="Resumo">
                       <TrendingUp size={17} />
                     </button>
+                    <button onClick={() => verHistorico(v.id)} className="text-indigo-500 hover:text-indigo-700" title="Histórico de Comissões">
+                      <History size={17} />
+                    </button>
                     <button onClick={() => handleResetarSenha(v.id)} className="text-yellow-500 hover:text-yellow-700" title="Resetar Senha">
                       <Key size={17} />
                     </button>
@@ -259,6 +286,82 @@ const Vendedores = () => {
                 <button type="submit" className="flex-1 btn-accent">Salvar</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Histórico de Comissões */}
+      {showHistorico && historico && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-2">Histórico de Comissões — {historico.nome}</h3>
+
+            {/* Totais */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className="bg-blue-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Volume de Vendas</p>
+                <p className="text-sm font-bold text-blue-700">{formatarValor(historico.total_vendas)}</p>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Total Comissão</p>
+                <p className="text-sm font-bold text-yellow-700">{formatarValor(historico.total_comissao)}</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Pago</p>
+                <p className="text-sm font-bold text-green-700">{formatarValor(historico.total_pago)}</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">A Pagar</p>
+                <p className="text-sm font-bold text-red-700">{formatarValor(historico.total_a_pagar)}</p>
+              </div>
+            </div>
+
+            {/* Lista de vendas */}
+            {historico.vendas.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">Nenhuma venda registrada</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left">
+                    <th className="py-2 font-semibold">Data</th>
+                    <th className="py-2 font-semibold">Valor Venda</th>
+                    <th className="py-2 font-semibold">Comissão</th>
+                    <th className="py-2 font-semibold">Status</th>
+                    <th className="py-2 font-semibold"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historico.vendas.map((v) => (
+                    <tr key={v.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-2 text-gray-500 text-xs">
+                        {new Date(v.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="py-2 font-medium">{formatarValor(v.valor_venda)}</td>
+                      <td className="py-2 text-yellow-700 font-medium">{formatarValor(v.valor_comissao)}</td>
+                      <td className="py-2">
+                        {v.pago
+                          ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Pago</span>
+                          : <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs">Pendente</span>
+                        }
+                      </td>
+                      <td className="py-2 text-right">
+                        {!v.pago && (
+                          <button
+                            onClick={() => handleMarcarPago(v.id)}
+                            className="text-green-600 hover:text-green-800"
+                            title="Marcar como pago"
+                          >
+                            <CheckCircle size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            <button onClick={() => setShowHistorico(false)} className="btn-accent w-full mt-6">Fechar</button>
           </div>
         </div>
       )}

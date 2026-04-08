@@ -8,6 +8,7 @@ import Clientes from './pages/Clientes';
 import Orcamentos from './pages/Orcamentos';
 import OrcamentoDetalhe from './pages/OrcamentoDetalhe';
 import Contratos from './pages/Contratos';
+import Propostas from './pages/Propostas';
 import Vendedores from './pages/Vendedores';
 import Equipamentos from './pages/Equipamentos';
 import Premissas from './pages/PremissasConfig';
@@ -19,6 +20,7 @@ const App = () => {
     { path: '/dashboard', component: Dashboard, title: 'Dashboard', allowVendedor: true },
     { path: '/clientes', component: Clientes, title: 'Clientes', allowVendedor: true },
     { path: '/orcamentos', component: Orcamentos, title: 'Orçamentos', allowVendedor: true },
+    { path: '/propostas', component: Propostas, title: 'Propostas', allowVendedor: true },
     { path: '/contratos', component: Contratos, title: 'Contratos', allowVendedor: true },
     { path: '/vendedores', component: Vendedores, title: 'Vendedores', allowVendedor: false },
     { path: '/equipamentos', component: Equipamentos, title: 'Equipamentos', allowVendedor: false },

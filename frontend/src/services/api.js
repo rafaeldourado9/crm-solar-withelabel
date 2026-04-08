@@ -117,6 +117,8 @@ export const vendedoresAPI = {
   bloquear: (id) => api.post(`/vendedores/${id}/bloquear`),
   resetarSenha: (id, data) => api.post(`/vendedores/${id}/resetar-senha`, data),
   resumo: (id) => api.get(`/vendedores/${id}/resumo`),
+  historico: (id) => api.get(`/vendedores/${id}/historico`),
+  marcarComissaoPaga: (vendaId) => api.post(`/vendedores/comissoes/${vendaId}/pagar`),
   deletar: (id) => api.delete(`/vendedores/${id}`),
 };
 

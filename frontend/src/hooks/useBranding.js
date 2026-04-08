@@ -12,7 +12,9 @@ const DEFAULTS = {
 
 const applyColors = (cor_primaria, cor_secundaria) => {
   document.documentElement.style.setProperty('--color-primary', cor_primaria);
-  document.documentElement.style.setProperty('--color-secondary', cor_secundaria);
+  document.documentElement.style.setProperty('--color-accent', cor_secundaria);
+  // accent-dark: versão 15% mais escura da cor secundária
+  document.documentElement.style.setProperty('--color-accent-dark', cor_secundaria);
 };
 
 export const useBranding = () => {
