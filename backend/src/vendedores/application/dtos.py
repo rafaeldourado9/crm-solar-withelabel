@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -39,3 +40,25 @@ class ResumoVendedorResponse(BaseModel):
     total_contratos: int
     valor_total_vendas: Decimal
     comissao_estimada: Decimal
+
+
+class VendaVendedorResponse(BaseModel):
+    id: UUID
+    contrato_id: UUID
+    vendedor_id: UUID
+    valor_venda: Decimal
+    valor_comissao: Decimal
+    pago: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class HistoricoVendasResponse(BaseModel):
+    vendedor_id: UUID
+    nome: str
+    vendas: list[VendaVendedorResponse]
+    total_vendas: Decimal
+    total_comissao: Decimal
+    total_pago: Decimal
+    total_a_pagar: Decimal

@@ -13,10 +13,12 @@ from src.database import Base
 # Import all models here to ensure they are registered
 from src.auth.infrastructure.models import UserModel  # noqa: F401
 from src.clientes.infrastructure.models import ClienteModel  # noqa: F401
+from src.contratos.infrastructure.models import ContratoModel  # noqa: F401
 from src.equipamentos.infrastructure.models import InversorModel, PainelModel  # noqa: F401
 from src.orcamentos.infrastructure.models import OrcamentoModel  # noqa: F401
 from src.premissas.infrastructure.models import PremissaModel  # noqa: F401
 from src.tenant.infrastructure.models import TenantModel  # noqa: F401
+from src.vendedores.infrastructure.models import VendaVendedorModel  # noqa: F401
 
 config = context.config
 

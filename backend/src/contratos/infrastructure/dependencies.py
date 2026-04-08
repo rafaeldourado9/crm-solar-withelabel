@@ -30,4 +30,4 @@ def get_obter_contrato_use_case(db: AsyncSession = Depends(get_db)) -> ObterCont
 
 
 def get_atualizar_contrato_use_case(db: AsyncSession = Depends(get_db)) -> AtualizarContratoUseCase:
-    return AtualizarContratoUseCase(SQLAlchemyContratoRepository(db))
+    return AtualizarContratoUseCase(SQLAlchemyContratoRepository(db), session=db)

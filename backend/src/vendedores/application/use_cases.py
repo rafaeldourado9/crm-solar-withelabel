@@ -7,18 +7,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.domain.entities import User
 from src.auth.domain.services import PasswordService
-from src.auth.infrastructure.models import UserModel
 from src.auth.infrastructure.repositories import SQLAlchemyUserRepository
 from src.clientes.infrastructure.models import ClienteModel
 from src.contratos.infrastructure.models import ContratoModel
 from src.premissas.infrastructure.repositories import SQLAlchemyPremissaRepository
-from src.shared.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationError
+from src.shared.exceptions import ConflictError, NotFoundError, ValidationError
 from src.vendedores.application.dtos import (
     AtualizarVendedorRequest,
     CriarVendedorRequest,
+    HistoricoVendasResponse,
     ResumoVendedorResponse,
+    VendaVendedorResponse,
     VendedorResponse,
 )
+from src.vendedores.domain.entities import VendaVendedor
+from src.vendedores.infrastructure.repositories import SQLAlchemyVendaVendedorRepository
 
 _ROLES_VENDEDOR = ["vendedor", "indicacao"]
 
@@ -163,3 +166,75 @@ class ResumoVendedorUseCase:
             valor_total_vendas=valor_total,
             comissao_estimada=comissao_estimada,
         )
+
+
+class HistoricoVendasUseCase:
+    def __init__(self, session: AsyncSession):
+        self.user_repo = SQLAlchemyUserRepository(session)
+        self.venda_repo = SQLAlchemyVendaVendedorRepository(session)
+
+    async def execute(self, vendedor_id: UUID, tenant_id: UUID) -> HistoricoVendasResponse:
+        user = await self.user_repo.get_by_id(vendedor_id)
+        if not user or user.tenant_id != tenant_id or user.role not in _ROLES_VENDEDOR:
+            raise NotFoundError("Vendedor não encontrado")
+
+        vendas = await self.venda_repo.list_by_vendedor(vendedor_id, tenant_id)
+
+        total_vendas = sum((v.valor_venda for v in vendas), Decimal("0"))
+        total_comissao = sum((v.valor_comissao for v in vendas), Decimal("0"))
+        total_pago = sum((v.valor_comissao for v in vendas if v.pago), Decimal("0"))
+        total_a_pagar = total_comissao - total_pago
+
+        return HistoricoVendasResponse(
+            vendedor_id=vendedor_id,
+            nome=user.nome,
+            vendas=[VendaVendedorResponse.model_validate(v) for v in vendas],
+            total_vendas=total_vendas,
+            total_comissao=total_comissao,
+            total_pago=total_pago,
+            total_a_pagar=total_a_pagar,
+        )
+
+
+class RegistrarVendaUseCase:
+    """Registra automaticamente uma VendaVendedor ao fechar contrato."""
+
+    def __init__(self, session: AsyncSession):
+        self.venda_repo = SQLAlchemyVendaVendedorRepository(session)
+        self.premissa_repo = SQLAlchemyPremissaRepository(session)
+
+    async def execute(
+        self,
+        tenant_id: UUID,
+        contrato_id: UUID,
+        vendedor_id: UUID,
+        valor_venda: Decimal,
+    ) -> VendaVendedorResponse:
+        # Idempotência: não duplica se já existe
+        existente = await self.venda_repo.get_by_contrato(contrato_id, tenant_id)
+        if existente:
+            return VendaVendedorResponse.model_validate(existente)
+
+        premissa = await self.premissa_repo.get_ativa(tenant_id)
+        comissao_pct = Decimal(str(premissa.comissao_percentual)) if premissa else Decimal("5")
+
+        venda = VendaVendedor.calcular(
+            tenant_id=tenant_id,
+            contrato_id=contrato_id,
+            vendedor_id=vendedor_id,
+            valor_venda=valor_venda,
+            comissao_percentual=comissao_pct,
+        )
+        criada = await self.venda_repo.create(venda)
+        return VendaVendedorResponse.model_validate(criada)
+
+
+class MarcarComissaoPagaUseCase:
+    def __init__(self, session: AsyncSession):
+        self.venda_repo = SQLAlchemyVendaVendedorRepository(session)
+
+    async def execute(self, venda_id: UUID, tenant_id: UUID) -> VendaVendedorResponse:
+        venda = await self.venda_repo.marcar_pago(venda_id, tenant_id)
+        if not venda:
+            raise NotFoundError("Venda", str(venda_id))
+        return VendaVendedorResponse.model_validate(venda)

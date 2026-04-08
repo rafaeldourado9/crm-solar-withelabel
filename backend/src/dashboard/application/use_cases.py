@@ -15,8 +15,8 @@ from src.dashboard.application.dtos import (
     TopVendedor,
     UltimoCliente,
 )
-from src.premissas.infrastructure.repositories import SQLAlchemyPremissaRepository
 from src.propostas.infrastructure.models import PropostaModel
+from src.vendedores.infrastructure.models import VendaVendedorModel
 
 _CACHE_KEY = "dashboard:resumo:{tenant_id}"
 _CACHE_TTL = 300  # 5 minutos
@@ -26,7 +26,6 @@ class DashboardResumoUseCase:
     def __init__(self, session: AsyncSession, redis=None):
         self.session = session
         self.redis = redis
-        self.premissa_repo = SQLAlchemyPremissaRepository(session)
 
     async def execute(self, tenant_id: UUID) -> DashboardResponse:
         # Tenta cache Redis
@@ -84,10 +83,14 @@ class DashboardResumoUseCase:
         contratos_mes, faturamento_mensal = r.one()
         faturamento_mensal = Decimal(str(faturamento_mensal))
 
-        # Comissões pendentes (premissa × faturamento_mensal)
-        premissa = await self.premissa_repo.get_ativa(tenant_id)
-        comissao_pct = Decimal(str(premissa.comissao_percentual)) if premissa else Decimal("5")
-        comissoes_pendentes = (faturamento_mensal * comissao_pct / 100).quantize(Decimal("0.01"))
+        # Comissões pendentes (soma real de valor_comissao não pago)
+        r = await self.session.execute(
+            select(func.coalesce(func.sum(VendaVendedorModel.valor_comissao), 0)).where(
+                VendaVendedorModel.tenant_id == tenant_id,
+                VendaVendedorModel.pago == False,  # noqa: E712
+            )
+        )
+        comissoes_pendentes = Decimal(str(r.scalar_one()))
 
         # Top 5 vendedores (todos os tempos)
         r = await self.session.execute(

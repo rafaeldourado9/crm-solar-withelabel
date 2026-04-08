@@ -2,6 +2,8 @@
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.auth.domain.entities import User
 from src.contratos.application.dtos import (
     AtualizarContratoRequest,
@@ -127,8 +129,9 @@ class ObterContratoUseCase:
 
 
 class AtualizarContratoUseCase:
-    def __init__(self, contrato_repo: ContratoRepository):
+    def __init__(self, contrato_repo: ContratoRepository, session: AsyncSession | None = None):
         self.contrato_repo = contrato_repo
+        self.session = session
 
     async def execute(
         self, contrato_id: UUID, tenant_id: UUID, dto: AtualizarContratoRequest
@@ -136,6 +139,8 @@ class AtualizarContratoUseCase:
         contrato = await self.contrato_repo.get_by_id(contrato_id, tenant_id)
         if not contrato:
             raise NotFoundError("Contrato não encontrado")
+
+        status_anterior = contrato.status
 
         if dto.prazo_execucao_dias is not None:
             contrato.prazo_execucao_dias = dto.prazo_execucao_dias
@@ -147,4 +152,21 @@ class AtualizarContratoUseCase:
             contrato.status = StatusContrato(dto.status)
 
         atualizado = await self.contrato_repo.update(contrato)
+
+        # Comissão automática ao assinar contrato
+        novo_status = StatusContrato(dto.status) if dto.status else status_anterior
+        if (
+            novo_status == StatusContrato.ASSINADO
+            and status_anterior != StatusContrato.ASSINADO
+            and atualizado.vendedor_id
+            and self.session
+        ):
+            from src.vendedores.application.use_cases import RegistrarVendaUseCase
+            await RegistrarVendaUseCase(self.session).execute(
+                tenant_id=tenant_id,
+                contrato_id=atualizado.id,
+                vendedor_id=atualizado.vendedor_id,
+                valor_venda=atualizado.valor_total,
+            )
+
         return ContratoResponse.model_validate(atualizado)

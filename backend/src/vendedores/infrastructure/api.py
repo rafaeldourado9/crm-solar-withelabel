@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.domain.entities import User
 from src.auth.infrastructure.dependencies import get_current_tenant, get_current_user
@@ -10,8 +11,10 @@ from src.tenant.domain.entities import Tenant
 from src.vendedores.application.dtos import (
     AtualizarVendedorRequest,
     CriarVendedorRequest,
+    HistoricoVendasResponse,
     ResetarSenhaRequest,
     ResumoVendedorResponse,
+    VendaVendedorResponse,
     VendedorResponse,
 )
 from src.vendedores.application.use_cases import (
@@ -19,11 +22,12 @@ from src.vendedores.application.use_cases import (
     BloquearVendedorUseCase,
     CriarVendedorUseCase,
     DeletarVendedorUseCase,
+    HistoricoVendasUseCase,
     ListarVendedoresUseCase,
+    MarcarComissaoPagaUseCase,
     ResetarSenhaUseCase,
     ResumoVendedorUseCase,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/vendedores", tags=["vendedores"])
 
@@ -96,6 +100,27 @@ async def resumo_vendedor(
     db: AsyncSession = Depends(get_db),
 ) -> ResumoVendedorResponse:
     return await ResumoVendedorUseCase(db).execute(vendedor_id, tenant.id)
+
+
+@router.get("/{vendedor_id}/historico", response_model=HistoricoVendasResponse)
+async def historico_vendas(
+    vendedor_id: UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> HistoricoVendasResponse:
+    return await HistoricoVendasUseCase(db).execute(vendedor_id, tenant.id)
+
+
+@router.post("/comissoes/{venda_id}/pagar", response_model=VendaVendedorResponse)
+async def marcar_comissao_paga(
+    venda_id: UUID,
+    tenant: Tenant = Depends(get_current_tenant),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> VendaVendedorResponse:
+    _require_admin(user)
+    return await MarcarComissaoPagaUseCase(db).execute(venda_id, tenant.id)
 
 
 @router.delete("/{vendedor_id}", status_code=status.HTTP_204_NO_CONTENT)
