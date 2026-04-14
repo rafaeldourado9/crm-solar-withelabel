@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from uuid import UUID
@@ -61,16 +61,16 @@ class Contrato(TenantEntity):
         if self.status != StatusContrato.RASCUNHO:
             raise ValueError("Contrato só pode ser assinado quando em rascunho")
         self.status = StatusContrato.ASSINADO
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def iniciar_execucao(self) -> None:
         if self.status != StatusContrato.ASSINADO:
             raise ValueError("Contrato deve estar assinado para iniciar execução")
         self.status = StatusContrato.EM_EXECUCAO
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def concluir(self) -> None:
         if self.status != StatusContrato.EM_EXECUCAO:
             raise ValueError("Contrato deve estar em execução para ser concluído")
         self.status = StatusContrato.CONCLUIDO
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

@@ -1,28 +1,34 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 
 from src.config import settings
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class PasswordService:
     @staticmethod
     def hash_password(password: str) -> str:
-        return pwd_context.hash(password)
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
 
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        return pwd_context.verify(plain_password, hashed_password)
+        try:
+            plain_bytes = plain_password.encode('utf-8')
+            hashed_bytes = hashed_password.encode('utf-8')
+            return bcrypt.checkpw(plain_bytes, hashed_bytes)
+        except Exception:
+            return False
 
 
 class JWTService:
     @staticmethod
     def create_access_token(user_id: UUID, tenant_id: UUID, role: str) -> str:
-        expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
         payload = {
             "sub": str(user_id),
             "tenant_id": str(tenant_id),
@@ -34,7 +40,7 @@ class JWTService:
 
     @staticmethod
     def create_refresh_token(user_id: UUID, tenant_id: UUID) -> str:
-        expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+        expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
         payload = {
             "sub": str(user_id),
             "tenant_id": str(tenant_id),

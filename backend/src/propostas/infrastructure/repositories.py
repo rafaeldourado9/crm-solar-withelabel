@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -78,5 +78,5 @@ class SQLAlchemyPropostaRepository:
             select(func.count(PropostaModel.id)).where(PropostaModel.tenant_id == tenant_id)
         )
         total = result.scalar_one()
-        ano = datetime.utcnow().year
+        ano = datetime.now(timezone.utc).year
         return f"PROP-{ano}-{total + 1:04d}"

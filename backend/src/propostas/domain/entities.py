@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
 from uuid import UUID
@@ -54,10 +54,10 @@ class Proposta(TenantEntity):
         if not self.pode_aceitar():
             raise ValueError("Proposta não pode ser aceita no status atual")
         self.status = StatusProposta.ACEITA
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)
 
     def recusar(self) -> None:
         if self.status != StatusProposta.PENDENTE:
             raise ValueError("Proposta não pode ser recusada no status atual")
         self.status = StatusProposta.RECUSADA
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(timezone.utc)

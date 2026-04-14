@@ -1,6 +1,6 @@
 """Dashboard: agregações multi-repo com cache Redis opcional."""
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -42,7 +42,7 @@ class DashboardResumoUseCase:
         return data
 
     async def _query(self, tenant_id: UUID) -> DashboardResponse:
-        agora = datetime.utcnow()
+        agora = datetime.now(timezone.utc)
         inicio_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         trinta_dias = agora - timedelta(days=30)
 

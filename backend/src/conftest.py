@@ -1,3 +1,4 @@
+"""Conftest global para todos os testes em src/ e tests/."""
 import asyncio
 from collections.abc import AsyncGenerator
 
@@ -24,6 +25,7 @@ def event_loop():
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
+    """Cria e destrói as tabelas antes/depois de cada teste."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
@@ -33,10 +35,9 @@ async def setup_db():
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Sessao compartilhada para testes. Uso: db_session nos testes."""
+    """Sessao de banco para testes. Commit manual necessário."""
     async with test_session_factory() as session:
         yield session
-        await session.commit()
 
 
 @pytest_asyncio.fixture
