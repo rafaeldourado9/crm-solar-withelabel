@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
+import { useState } from 'react';
+import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-react';
 
 let toastId = 0;
 
@@ -11,7 +11,7 @@ export const useToast = () => {
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
+    }, 3500);
   };
 
   const removeToast = (id) => {
@@ -33,25 +33,37 @@ export const ToastContainer = ({ toasts, removeToast }) => {
   );
 };
 
-const Toast = ({ message, type, onClose }) => {
-  const icons = {
-    success: <CheckCircle size={20} className="text-green-600" />,
-    error: <XCircle size={20} className="text-red-600" />,
-    warning: <AlertCircle size={20} className="text-yellow-600" />
-  };
+const TOAST_STYLES = {
+  success: {
+    icon: <CheckCircle size={16} className="text-green-600 shrink-0" />,
+    wrapper: 'bg-white border border-surface-200 shadow-soft-lg',
+  },
+  error: {
+    icon: <XCircle size={16} className="text-danger shrink-0" />,
+    wrapper: 'bg-white border border-danger-border shadow-soft-lg',
+  },
+  warning: {
+    icon: <AlertCircle size={16} className="text-warning shrink-0" />,
+    wrapper: 'bg-white border border-warning-border shadow-soft-lg',
+  },
+  info: {
+    icon: <Info size={16} className="text-info shrink-0" />,
+    wrapper: 'bg-white border border-info-border shadow-soft-lg',
+  },
+};
 
-  const colors = {
-    success: 'bg-green-50 border-green-200',
-    error: 'bg-red-50 border-red-200',
-    warning: 'bg-yellow-50 border-yellow-200'
-  };
+const Toast = ({ message, type, onClose }) => {
+  const style = TOAST_STYLES[type] || TOAST_STYLES.success;
 
   return (
-    <div className={`${colors[type]} border rounded-lg shadow-lg p-4 min-w-[300px] max-w-md flex items-start gap-3 animate-fadeIn`}>
-      {icons[type]}
-      <p className="flex-1 text-sm text-gray-800">{message}</p>
-      <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-        <X size={16} />
+    <div className={`${style.wrapper} rounded-lg p-3.5 min-w-[320px] max-w-sm flex items-start gap-3 animate-slideInRight`}>
+      {style.icon}
+      <p className="flex-1 text-sm text-surface-700 leading-snug">{message}</p>
+      <button
+        onClick={onClose}
+        className="text-surface-400 hover:text-surface-600 transition-colors shrink-0 p-0.5"
+      >
+        <X size={14} />
       </button>
     </div>
   );

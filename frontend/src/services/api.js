@@ -7,9 +7,16 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
+  const tenantId = localStorage.getItem('tenant_id');
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  if (tenantId) {
+    config.headers['X-Tenant-ID'] = tenantId;
+  }
+  
   return config;
 });
 
@@ -17,6 +24,19 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+
+    // Log do erro para debug
+    if (error.response) {
+      console.error('API Error:', {
+        status: error.response.status,
+        url: error.config?.url,
+        data: error.response.data
+      });
+    } else if (error.request) {
+      console.error('Network Error: Sem resposta do servidor', error.message);
+    } else {
+      console.error('Request Error:', error.message);
+    }
 
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
@@ -29,8 +49,8 @@ api.interceptors.response.use(
           localStorage.setItem('access_token', newToken);
           original.headers.Authorization = `Bearer ${newToken}`;
           return api(original);
-        } catch {
-          // refresh falhou — força logout
+        } catch (refreshError) {
+          console.error('Refresh token falhou:', refreshError.message);
         }
       }
 
@@ -44,7 +64,7 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
+  login: (email, password, tenantId) => api.post('/auth/login', { email, password }, { headers: { 'X-Tenant-ID': tenantId } }),
   refresh: (refresh_token) => api.post('/auth/refresh', { refresh_token }),
   me: () => api.get('/auth/me'),
 };

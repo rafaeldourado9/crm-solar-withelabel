@@ -25,7 +25,7 @@ from src.equipamentos.infrastructure.dependencies import (
 )
 from src.tenant.domain.entities import Tenant
 
-router = APIRouter(prefix="/api/v1", tags=["equipamentos"])
+router = APIRouter(prefix="/api/v1/equipamentos", tags=["equipamentos"])
 
 
 @router.post("/paineis", response_model=PainelResponse, status_code=status.HTTP_201_CREATED)
@@ -72,7 +72,7 @@ async def listar_inversores(
     return [InversorResponse.model_validate(i) for i in inversores]
 
 
-@router.post("/equipamentos/validar-dimensionamento", response_model=ValidarDimensionamentoResponse)
+@router.post("/validar-dimensionamento", response_model=ValidarDimensionamentoResponse)
 async def validar_dimensionamento(
     dto: ValidarDimensionamentoRequest,
     tenant: Tenant = Depends(get_current_tenant),

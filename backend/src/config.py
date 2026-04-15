@@ -3,10 +3,10 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_name: str = "SunOps SaaS"
-    debug: bool = False
+    debug: bool = True
 
-    database_url: str = "postgresql+asyncpg://sunops:sunops123@localhost:5432/sunops"
-    database_url_sync: str = "postgresql://sunops:sunops123@localhost:5432/sunops"
+    database_url: str = "sqlite+aiosqlite:///./test.db"
+    database_url_sync: str = "sqlite:///./test.db"
 
     redis_url: str = "redis://localhost:6379/0"
 

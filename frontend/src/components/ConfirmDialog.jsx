@@ -1,32 +1,31 @@
 import { AlertTriangle } from 'lucide-react';
-import { useState } from 'react';
 
-export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirmar', cancelText = 'Cancelar' }) => {
+export const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', variant = 'danger' }) => {
   if (!isOpen) return null;
 
+  const isDanger = variant === 'danger';
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
-        <div className="flex items-center gap-3 mb-4">
-          <AlertTriangle className="text-yellow-500" size={32} />
-          <h3 className="text-xl font-bold">{title}</h3>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-4">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0
+            ${isDanger ? 'bg-danger-bg' : 'bg-surface-100'}`}>
+            <AlertTriangle size={20} className={isDanger ? 'text-danger' : 'text-surface-500'} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-base font-semibold text-surface-900">{title}</h3>
+            <p className="text-sm text-surface-500 mt-1">{message}</p>
+          </div>
         </div>
-        
-        <p className="text-gray-600 mb-6">{message}</p>
-        
-        <div className="flex gap-3">
-          <button 
-            onClick={onClose} 
-            className="btn-outline flex-1"
-          >
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="btn-outline text-sm">
             {cancelText}
           </button>
-          <button 
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }} 
-            className="btn-accent flex-1 bg-red-500 hover:bg-red-600"
+          <button
+            onClick={() => { onConfirm(); onClose(); }}
+            className={`text-sm ${isDanger ? 'btn-danger' : 'btn-primary'}`}
           >
             {confirmText}
           </button>

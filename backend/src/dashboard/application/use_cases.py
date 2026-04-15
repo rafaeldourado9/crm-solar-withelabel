@@ -42,7 +42,7 @@ class DashboardResumoUseCase:
         return data
 
     async def _query(self, tenant_id: UUID) -> DashboardResponse:
-        agora = datetime.now(timezone.utc)
+        agora = datetime.now(timezone.utc).replace(tzinfo=None)
         inicio_mes = agora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         trinta_dias = agora - timedelta(days=30)
 

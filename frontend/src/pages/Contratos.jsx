@@ -3,11 +3,11 @@ import { FileSignature, Download } from 'lucide-react';
 import { contratosAPI } from '../services/api';
 import { useToast, ToastContainer } from '../components/Toast';
 
-const STATUS_LABELS = {
-  rascunho: { label: 'Rascunho', cls: 'bg-gray-100 text-gray-700' },
-  assinado: { label: 'Assinado', cls: 'bg-blue-100 text-blue-700' },
-  em_execucao: { label: 'Em Execução', cls: 'bg-yellow-100 text-yellow-700' },
-  concluido: { label: 'Concluído', cls: 'bg-green-100 text-green-700' },
+const STATUS_MAP = {
+  rascunho: { label: 'Rascunho', cls: 'badge-gray' },
+  assinado: { label: 'Assinado', cls: 'badge-blue' },
+  em_execucao: { label: 'Em Execução', cls: 'badge-yellow' },
+  concluido: { label: 'Concluído', cls: 'badge-green' },
 };
 
 const Contratos = () => {
@@ -17,9 +17,7 @@ const Contratos = () => {
   const [loading, setLoading] = useState(false);
   const { toasts, showToast, removeToast } = useToast();
 
-  useEffect(() => {
-    carregarContratos();
-  }, [statusFiltro]);
+  useEffect(() => { carregarContratos(); }, [statusFiltro]);
 
   const carregarContratos = async () => {
     setLoading(true);
@@ -59,11 +57,7 @@ const Contratos = () => {
   };
 
   const avancarStatus = async (contrato) => {
-    const proximo = {
-      rascunho: 'assinado',
-      assinado: 'em_execucao',
-      em_execucao: 'concluido',
-    }[contrato.status];
+    const proximo = { rascunho: 'assinado', assinado: 'em_execucao', em_execucao: 'concluido' }[contrato.status];
     if (!proximo) return;
     try {
       await contratosAPI.atualizar(contrato.id, { status: proximo });
@@ -74,20 +68,15 @@ const Contratos = () => {
     }
   };
 
-  const formatarValor = (v) =>
-    Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  const formatarData = (iso) => {
-    if (!iso) return '-';
-    return new Date(iso).toLocaleDateString('pt-BR');
-  };
+  const formatarValor = (v) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatarData = (iso) => { if (!iso) return '-'; return new Date(iso).toLocaleDateString('pt-BR'); };
 
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {/* Resumo */}
-      <div className="card bg-green-50 border-green-200">
+      <div className="card bg-success-bg border-success-border">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-green-700">Total de Contratos</p>
@@ -97,92 +86,69 @@ const Contratos = () => {
         </div>
       </div>
 
-      {/* Filtro de status */}
-      <div className="card">
-        <div className="flex gap-2 flex-wrap">
-          {['', 'rascunho', 'assinado', 'em_execucao', 'concluido'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFiltro(s)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFiltro === s
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {s === '' ? 'Todos' : STATUS_LABELS[s]?.label}
-            </button>
-          ))}
-        </div>
+      {/* Filtros */}
+      <div className="flex gap-2 flex-wrap">
+        {['', 'rascunho', 'assinado', 'em_execucao', 'concluido'].map((s) => (
+          <button key={s} onClick={() => setStatusFiltro(s)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              statusFiltro === s ? 'bg-surface-900 text-white' : 'bg-white text-surface-600 border border-surface-200 hover:bg-surface-50'
+            }`}>
+            {s === '' ? 'Todos' : STATUS_MAP[s]?.label}
+          </button>
+        ))}
       </div>
 
       {/* Tabela */}
-      <div className="card overflow-x-auto">
+      <div className="card p-0 overflow-hidden">
         {loading ? (
-          <p className="text-center py-8 text-gray-400">Carregando...</p>
+          <p className="text-center py-8 text-surface-400 text-sm">Carregando...</p>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold">Número</th>
-                <th className="text-left py-3 px-4 font-semibold">Cliente</th>
-                <th className="text-left py-3 px-4 font-semibold">Empresa</th>
-                <th className="text-left py-3 px-4 font-semibold">Valor Total</th>
-                <th className="text-left py-3 px-4 font-semibold">Status</th>
-                <th className="text-left py-3 px-4 font-semibold">Criado em</th>
-                <th className="text-right py-3 px-4 font-semibold">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contratos.map((c) => {
-                const statusInfo = STATUS_LABELS[c.status] || { label: c.status, cls: 'bg-gray-100' };
-                return (
-                  <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium">{c.numero}</td>
-                    <td className="py-3 px-4">
-                      <p>{c.cliente_nome}</p>
-                      <p className="text-xs text-gray-500">{c.cliente_cidade}/{c.cliente_estado}</p>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-gray-600">{c.empresa_razao_social}</td>
-                    <td className="py-3 px-4 font-bold text-green-600">{formatarValor(c.valor_total)}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.cls}`}>
-                        {statusInfo.label}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm">{formatarData(c.created_at)}</td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex gap-2 justify-end">
-                        {c.status !== 'concluido' && (
-                          <button
-                            onClick={() => avancarStatus(c)}
-                            className="btn-outline text-sm py-1 px-3"
-                          >
-                            Avançar
-                          </button>
-                        )}
-                        <button
-                          onClick={() => gerarPdf(c.id, c.numero)}
-                          className="btn-primary text-sm py-1 px-3 flex items-center gap-1"
-                        >
-                          <Download size={14} />
-                          PDF
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {contratos.length === 0 && (
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-400">
-                    <FileSignature size={40} className="mx-auto mb-2 opacity-40" />
-                    Nenhum contrato encontrado
-                  </td>
+                  <th>Número</th>
+                  <th>Cliente</th>
+                  <th>Empresa</th>
+                  <th>Valor Total</th>
+                  <th>Status</th>
+                  <th>Criado em</th>
+                  <th className="text-right">Ações</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {contratos.map((c) => {
+                  const statusInfo = STATUS_MAP[c.status] || { label: c.status, cls: 'badge-gray' };
+                  return (
+                    <tr key={c.id}>
+                      <td className="font-medium text-surface-800">{c.numero}</td>
+                      <td>
+                        <p className="text-surface-800">{c.cliente_nome}</p>
+                        <p className="text-xs text-surface-400">{c.cliente_cidade}/{c.cliente_estado}</p>
+                      </td>
+                      <td className="text-surface-500 text-sm">{c.empresa_razao_social}</td>
+                      <td className="font-semibold text-surface-900">{formatarValor(c.valor_total)}</td>
+                      <td><span className={`badge ${statusInfo.cls}`}>{statusInfo.label}</span></td>
+                      <td className="text-surface-400">{formatarData(c.created_at)}</td>
+                      <td className="text-right">
+                        <div className="flex gap-1.5 justify-end">
+                          {c.status !== 'concluido' && (
+                            <button onClick={() => avancarStatus(c)} className="btn-outline text-xs py-1 px-2.5">Avançar</button>
+                          )}
+                          <button onClick={() => gerarPdf(c.id, c.numero)} className="btn-primary text-xs py-1 px-2.5 flex items-center gap-1">
+                            <Download size={12} /> PDF
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {contratos.length === 0 && (
+                  <tr><td colSpan={7} className="text-center py-12 text-surface-400 text-sm">Nenhum contrato encontrado</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

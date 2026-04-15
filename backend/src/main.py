@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import traceback
+import logging
 
 from src.orcamentos.domain.exceptions import OrcamentoError
 from src.shared.exceptions import (
@@ -10,6 +12,8 @@ from src.shared.exceptions import (
     NotFoundError,
     ValidationError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -53,6 +57,21 @@ def _register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(OrcamentoError)
     async def orcamento_handler(request: Request, exc: OrcamentoError) -> JSONResponse:
         return JSONResponse(status_code=422, content={"detail": exc.message})
+
+    @app.exception_handler(Exception)
+    async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.error(f"Erro não tratado: {exc}")
+        logger.error(f"URL: {request.url}")
+        logger.error(f"Método: {request.method}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "Erro interno do servidor",
+                "error": str(exc),
+                "type": type(exc).__name__
+            }
+        )
 
 
 def _register_routes(app: FastAPI) -> None:

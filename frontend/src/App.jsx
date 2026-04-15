@@ -43,7 +43,7 @@ const App = () => {
                 <Sidebar />
                 <div className="flex-1 w-full">
                   <Header title="Detalhes do Orçamento" />
-                  <main className="p-4 md:p-8">
+                  <main className="p-6 md:p-8">
                     <OrcamentoDetalhe />
                   </main>
                 </div>

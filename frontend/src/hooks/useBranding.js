@@ -34,7 +34,12 @@ export const useBranding = () => {
   useEffect(() => {
     const carregar = async () => {
       try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+        
         const me = await authAPI.me();
+        if (!me?.data?.tenant_id) return;
+        
         const tenantRes = await tenantsAPI.obter(me.data.tenant_id);
         const t = tenantRes.data;
         const dados = {
@@ -45,8 +50,8 @@ export const useBranding = () => {
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
         setBranding(dados);
-      } catch {
-        // silencioso — usa defaults
+      } catch (error) {
+        console.warn('Erro ao carregar branding, usando defaults:', error.message);
       }
     };
     carregar();
